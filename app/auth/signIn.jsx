@@ -3,11 +3,13 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignIn() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -139,6 +141,7 @@ export default function SignIn() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
 
@@ -148,17 +151,11 @@ export default function SignIn() {
         throw new Error(data.message || 'Invalid credentials');
       }
 
-      // Success
-      Alert.alert(
-        'Success',
-        'Logged in successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)/home') // Navigate to home screen after login
-          }
-        ]
-      );
+      // Call signIn from AuthContext
+      await signIn(data.user);
+      
+      // Navigate after successful login
+      router.replace('/(tabs)/home');
 
     } catch (error) {
       Alert.alert(
