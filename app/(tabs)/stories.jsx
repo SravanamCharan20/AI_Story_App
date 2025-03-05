@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Animated, Modal, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Animated, Modal, ActivityIndicator, TextInput, Platform } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,10 +12,10 @@ import { PanResponder, TouchableWithoutFeedback } from 'react-native';
 const { width } = Dimensions.get('window');
 
 const moodColors = {
-  happy: ['#FFD700', '#FFA500'],
-  calm: ['#87CEEB', '#4682B4'],
-  mysterious: ['#9370DB', '#483D8B'],
-  exciting: ['#FF4500', '#FF6347'],
+  happy: ['#FFB7B7', '#FF8C8C'],
+  calm: ['#B7FFD8', '#8CFFC0'],
+  mysterious: ['#B7D4FF', '#8CB4FF'],
+  exciting: ['#FFB88C', '#FF6B6B'],
 };
 
 // Using shorter audio files for better performance
@@ -55,6 +55,15 @@ export default function Stories() {
   const playheadScale = useRef(new Animated.Value(1)).current;
   const playheadOpacity = useRef(new Animated.Value(0.8)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
+  const [sortBy, setSortBy] = useState('newest');
+  const [viewMode, setViewMode] = useState('grid');
+  const filterAnimation = useRef(new Animated.Value(0)).current;
+  const searchBarWidth = useRef(new Animated.Value(0)).current;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedMood, setSelectedMood] = useState('All');
+  const searchInputRef = useRef(null);
+  const searchBarAnimation = useRef(new Animated.Value(0.85)).current;
 
   const defaultStories = [
     {
@@ -95,6 +104,15 @@ export default function Stories() {
     { id: 0, title: "All", color: ['#FFB7B7', '#FF8C8C'] },
     { id: 1, title: "My PDFs", color: ['#B7D4FF', '#8CB4FF'] },
     { id: 2, title: "Default Stories", color: ['#B7FFD8', '#8CFFC0'] },
+  ];
+
+  // Add this after the storyCategories array
+  const moodFilters = [
+    { id: 0, title: 'All', icon: 'apps' },
+    { id: 1, title: 'happy', icon: 'sunny' },
+    { id: 2, title: 'calm', icon: 'water' },
+    { id: 3, title: 'mysterious', icon: 'moon' },
+    { id: 4, title: 'exciting', icon: 'flash' },
   ];
 
   // Load all stories including uploaded PDFs
@@ -197,13 +215,32 @@ export default function Stories() {
     }
   };
 
-  // Filter stories based on selected category
-  const filteredStories = allStories.filter(story => {
-    if (selectedCategory === "All") return true;
-    if (selectedCategory === "My PDFs") return story.type === "pdf";
-    if (selectedCategory === "Default Stories") return story.type === "default";
-    return true;
-  });
+  // Update the filtered stories logic
+  const getFilteredStories = () => {
+    return allStories
+      .filter(story => {
+        // Category filter
+        if (selectedCategory !== "All") {
+          if (selectedCategory === "My PDFs" && story.type !== "pdf") return false;
+          if (selectedCategory === "Default Stories" && story.type !== "default") return false;
+        }
+        
+        // Mood filter
+        if (selectedMood !== "All" && story.mood !== selectedMood.toLowerCase()) return false;
+        
+        // Search query
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          return (
+            story.title.toLowerCase().includes(query) ||
+            story.mood.toLowerCase().includes(query) ||
+            story.duration.toLowerCase().includes(query)
+          );
+        }
+        
+        return true;
+      });
+  };
 
   const togglePlayPause = async () => {
     if (!soundObject.current || isLoading) return;
@@ -483,95 +520,288 @@ export default function Stories() {
     ]).start(() => handleStoryPress(story));
   };
 
+  // Add this function for sorting
+  const sortStories = (stories) => {
+    switch (sortBy) {
+      case 'newest':
+        return [...stories].sort((a, b) => b.id - a.id);
+      case 'duration':
+        return [...stories].sort((a, b) => {
+          const durationA = parseInt(a.duration.split(':')[0]) * 60 + parseInt(a.duration.split(':')[1]);
+          const durationB = parseInt(b.duration.split(':')[0]) * 60 + parseInt(b.duration.split(':')[1]);
+          return durationA - durationB;
+        });
+      default:
+        return stories;
+    }
+  };
+
+  // Add this helper function at the top level
+  const getTimeOfDay = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Story Time</Text>
-          <View style={styles.headerRight}>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>Story Time 🎯</Text>
+          <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="search" size={24} color="#666" />
+              <Ionicons name="notifications-outline" size={22} color="#666" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="filter" size={24} color="#666" />
+            <TouchableOpacity 
+              style={styles.viewModeButton}
+              onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+            >
+              <Ionicons 
+                name={viewMode === 'grid' ? 'grid' : 'list'} 
+                size={22} 
+                color="#666" 
+              />
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContainer}
-        >
-          {storyCategories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.categoryButton,
-                selectedCategory === category.title && styles.selectedCategory
-              ]}
-              onPress={() => setSelectedCategory(category.title)}
-            >
-              <LinearGradient
-                colors={category.color}
-                style={styles.categoryGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+        <View style={styles.searchContainer}>
+          <Animated.View style={[
+            styles.searchInputContainer,
+            { flex: searchBarAnimation }
+          ]}>
+            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Search stories..."
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                if (text && selectedMood !== 'All') {
+                  setSelectedMood('All');
+                }
+              }}
+              onFocus={() => {
+                Animated.spring(searchBarAnimation, {
+                  toValue: 1,
+                  useNativeDriver: false,
+                  friction: 8,
+                }).start();
+              }}
+              onBlur={() => {
+                if (!searchQuery) {
+                  Animated.spring(searchBarAnimation, {
+                    toValue: 0.85,
+                    useNativeDriver: false,
+                    friction: 8,
+                  }).start();
+                }
+              }}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                style={styles.clearButton}
+                onPress={() => {
+                  setSearchQuery('');
+                  searchInputRef.current?.blur();
+                }}
               >
-                <Text style={styles.categoryText}>{category.title}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Ionicons name="close-circle" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+          <TouchableOpacity 
+            style={[
+              styles.filterButton, 
+              showFilters && styles.filterButtonActive
+            ]}
+            onPress={() => {
+              setShowFilters(!showFilters);
+              Animated.spring(filterAnimation, {
+                toValue: showFilters ? 0 : 1,
+                useNativeDriver: true,
+                friction: 8,
+              }).start();
+            }}
+          >
+            <Ionicons name="options" size={22} color={showFilters ? "#FFF" : "#666"} />
+          </TouchableOpacity>
+        </View>
 
-        <View style={styles.storiesGrid}>
-          {filteredStories.map((story) => (
-            <TouchableWithoutFeedback
-              key={story.id}
-              onPress={() => handleCardPress(story)}
-            >
-              <Animated.View style={[
-                styles.storyCard,
-                { transform: [{ scale: cardScale }] }
-              ]}>
+        <Animated.View 
+          style={[
+            styles.filterPanel,
+            {
+              transform: [{
+                translateY: filterAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-20, 0],
+                })
+              }],
+              opacity: filterAnimation
+            }
+          ]}
+        >
+          {showFilters && (
+            <>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Sort By</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterOptionsContainer}
+                >
+                  {['newest', 'duration'].map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.filterOption,
+                        sortBy === option && styles.filterOptionActive
+                      ]}
+                      onPress={() => setSortBy(option)}
+                    >
+                      <Ionicons 
+                        name={option === 'newest' ? 'time' : 'timer'} 
+                        size={18} 
+                        color={sortBy === option ? "#FFF" : "#666"}
+                      />
+                      <Text style={[
+                        styles.filterOptionText,
+                        sortBy === option && styles.filterOptionTextActive
+                      ]}>
+                        {option.charAt(0).toUpperCase() + option.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterTitle}>Mood</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterOptionsContainer}
+                >
+                  {moodFilters.map((mood) => (
+                    <TouchableOpacity
+                      key={mood.id}
+                      style={[
+                        styles.filterOption,
+                        selectedMood === mood.title && styles.filterOptionActive
+                      ]}
+                      onPress={() => setSelectedMood(mood.title)}
+                    >
+                      <Ionicons 
+                        name={mood.icon} 
+                        size={18} 
+                        color={selectedMood === mood.title ? "#FFF" : "#666"}
+                      />
+                      <Text style={[
+                        styles.filterOptionText,
+                        selectedMood === mood.title && styles.filterOptionTextActive
+                      ]}>
+                        {mood.title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </>
+          )}
+        </Animated.View>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.categorySection}>
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContainer}
+            decelerationRate="fast"
+            snapToInterval={width * 0.4 + 20}
+          >
+            {storyCategories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryCard,
+                  selectedCategory === category.title && styles.selectedCategory
+                ]}
+                onPress={() => setSelectedCategory(category.title)}
+              >
                 <LinearGradient
-                  colors={moodColors[story.mood]}
-                  style={styles.storyGradient}
+                  colors={category.color}
+                  style={styles.categoryGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <View style={styles.cardContent}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.storyTitle}>{story.title}</Text>
-                      {story.type === 'pdf' && (
-                        <View style={styles.pdfTag}>
-                          <Ionicons name="document-text" size={16} color="#FFF" />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.cardFooter}>
-                      <View style={styles.moodTag}>
-                        <Ionicons 
-                          name={
-                            story.mood === 'happy' ? 'sunny' :
-                            story.mood === 'calm' ? 'water' :
-                            story.mood === 'mysterious' ? 'moon' : 'flash'
-                          } 
-                          size={14} 
-                          color="#FFF" 
-                        />
-                        <Text style={styles.moodText}>{story.mood}</Text>
-                      </View>
-                      <Text style={styles.storyDuration}>{story.duration}</Text>
-                    </View>
-                  </View>
+                  <Text style={styles.categoryTitle}>{category.title}</Text>
                 </LinearGradient>
-              </Animated.View>
-            </TouchableWithoutFeedback>
-          ))}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.storiesSection}>
+          <Text style={styles.sectionTitle}>Stories</Text>
+          <View style={[
+            styles.storiesGrid,
+            viewMode === 'list' && styles.storiesListView
+          ]}>
+            {sortStories(getFilteredStories()).map((story) => (
+              <TouchableWithoutFeedback
+                key={story.id}
+                onPress={() => handleCardPress(story)}
+              >
+                <Animated.View style={[
+                  styles.storyCard,
+                  viewMode === 'list' && styles.storyCardList,
+                  { transform: [{ scale: cardScale }] }
+                ]}>
+                  <LinearGradient
+                    colors={moodColors[story.mood]}
+                    style={styles.storyGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <View style={styles.cardContent}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.storyTitle}>{story.title}</Text>
+                        {story.type === 'pdf' && (
+                          <View style={styles.pdfTag}>
+                            <Ionicons name="document-text" size={16} color="#1C1C1E" />
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.cardFooter}>
+                        <View style={styles.moodTag}>
+                          <Ionicons 
+                            name={
+                              story.mood === 'happy' ? 'sunny' :
+                              story.mood === 'calm' ? 'water' :
+                              story.mood === 'mysterious' ? 'moon' : 'flash'
+                            } 
+                            size={14} 
+                            color="#1C1C1E" 
+                          />
+                          <Text style={styles.moodText}>{story.mood}</Text>
+                        </View>
+                        <Text style={styles.storyDuration}>{story.duration}</Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </Animated.View>
+              </TouchableWithoutFeedback>
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -774,89 +1004,187 @@ export default function Stories() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  scrollContent: {
-    paddingBottom: 100,
+    backgroundColor: '#FFF',
   },
   header: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    backgroundColor: '#FFF',
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#1C1C1E',
   },
-  headerRight: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 16,
   },
   iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: '#F2F2F7',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
   },
-  categoriesContainer: {
-    paddingHorizontal: 15,
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 20,
   },
-  categoryButton: {
-    marginHorizontal: 5,
-    borderRadius: 15,
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 45,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1C1C1E',
+    paddingVertical: 8,
+    fontWeight: '500',
+  },
+  filterButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: '#FF6B6B',
+  },
+  filterPanel: {
+    backgroundColor: '#F8F8F8',
+    borderRadius: 16,
+    padding: 15,
+    marginBottom: 20,
+  },
+  filterTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 12,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginRight: 8,
+    gap: 8,
+  },
+  filterOptionActive: {
+    backgroundColor: '#FF6B6B',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+    textTransform: 'capitalize',
+  },
+  filterOptionTextActive: {
+    color: '#FFF',
+  },
+  categorySection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginBottom: 15,
+    paddingHorizontal: 20,
+  },
+  categoriesContainer: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  categoryCard: {
+    width: width * 0.4,
+    height: 100,
+    borderRadius: 16,
     overflow: 'hidden',
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   categoryGradient: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
-  categoryText: {
-    color: '#FFF',
-    fontSize: 14,
+  categoryTitle: {
+    fontSize: 16,
     fontWeight: '600',
+    color: '#FFF',
+    textAlign: 'center',
+  },
+  storiesSection: {
+    flex: 1,
   },
   storiesGrid: {
     paddingHorizontal: 20,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 16,
   },
   storyCard: {
-    width: (width - 50) / 2,
-    height: 180,
-    marginBottom: 15,
-    borderRadius: 20,
+    width: (width - 56) / 2,
+    height: 200,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
     backgroundColor: '#FFF',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  storyCardList: {
+    width: '100%',
+    height: 120,
+    marginBottom: 12,
   },
   storyGradient: {
     flex: 1,
-    padding: 15,
-    borderRadius: 20,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
   },
   cardContent: {
     flex: 1,
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 15,
-    padding: 12,
+    padding: 16,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -867,36 +1195,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
   },
   storyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFF',
+    color: '#1C1C1E',
+    marginBottom: 8,
     flex: 1,
-    marginRight: 10,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    marginRight: 8,
   },
   moodTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 15,
-    backdropFilter: 'blur(5px)',
+    borderRadius: 12,
+    alignSelf: 'flex-start',
   },
   moodText: {
-    color: '#FFF',
-    fontSize: 12,
+    color: '#1C1C1E',
+    fontSize: 14,
     fontWeight: '500',
-    marginLeft: 4,
+    marginLeft: 6,
+    textTransform: 'capitalize',
   },
   storyDuration: {
-    color: '#FFF',
-    fontSize: 12,
-    opacity: 0.8,
+    color: '#1C1C1E',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  selectedCategory: {
+    transform: [{ scale: 1.05 }],
+  },
+  pdfTag: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: 8,
+    borderRadius: 12,
   },
   playerModal: {
     flex: 1,
@@ -1047,19 +1383,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 30,
   },
-  selectedCategory: {
-    transform: [{ scale: 1.05 }],
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  pdfTag: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    padding: 8,
-    borderRadius: 12,
-  },
   volumeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1105,6 +1428,26 @@ const styles = StyleSheet.create({
   doubleTapText: {
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 12,
+    marginTop: 4,
+  },
+  storiesListView: {
+    flexDirection: 'column',
+  },
+  emptyStateContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+    marginTop: 12,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
     marginTop: 4,
   },
 });
