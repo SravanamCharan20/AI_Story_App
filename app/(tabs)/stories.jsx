@@ -794,7 +794,6 @@ export default function Stories() {
                           />
                           <Text style={styles.moodText}>{story.mood}</Text>
                         </View>
-                        <Text style={styles.storyDuration}>{story.duration}</Text>
                       </View>
                     </View>
                   </LinearGradient>
@@ -826,7 +825,7 @@ export default function Stories() {
                 </TouchableOpacity>
                 <Text style={styles.modalTitle}>Now Playing</Text>
                 <TouchableOpacity style={styles.modalOptionButton}>
-                  <Ionicons name="ellipsis-horizontal" size={24} color="#FFF" />
+                  <Ionicons name="ellipsis-horizontal" size={12} color="#FFF" />
                 </TouchableOpacity>
               </View>
 
@@ -1009,7 +1008,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: '#fff',
   },
   headerTop: {
     flexDirection: 'row',
@@ -1038,9 +1037,8 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
-  },
+    gap: 12
+   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1072,12 +1070,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 15,
     marginBottom: 20,
+    marginTop: 10,
   },
   filterTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1C1C1E',
     marginBottom: 12,
+    marginTop: 5,
   },
   filterOption: {
     flexDirection: 'row',
@@ -1087,6 +1087,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     marginRight: 8,
+    // marginTop: 10,
     gap: 8,
   },
   filterOptionActive: {
@@ -1097,6 +1098,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#666',
     textTransform: 'capitalize',
+    // marginTop: 10,
   },
   filterOptionTextActive: {
     color: '#FFF',
@@ -1116,19 +1118,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   categoryCard: {
-    width: width * 0.4,
-    height: 100,
+    width: width * 0.5,
+    height: 60,
     borderRadius: 16,
     overflow: 'hidden',
-    marginRight: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
+    marginRight: 12
   },
   categoryGradient: {
     flex: 1,
@@ -1137,24 +1131,24 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   categoryTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#FFF',
+    color: '#000',
     textAlign: 'center',
   },
   storiesSection: {
     flex: 1,
   },
   storiesGrid: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 16,
   },
   storyCard: {
-    width: (width - 56) / 2,
-    height: 200,
+    width: (width - 50) / 2,
+    height: 180,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#FFF',
@@ -1198,7 +1192,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   storyTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1C1C1E',
     marginBottom: 8,
@@ -1223,8 +1217,11 @@ const styles = StyleSheet.create({
   },
   storyDuration: {
     color: '#1C1C1E',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
+    marginLeft: 10,
+    marginBottom: 10,
+    marginTop: 10,
   },
   selectedCategory: {
     transform: [{ scale: 1.05 }],
@@ -1273,13 +1270,14 @@ const styles = StyleSheet.create({
   playerContent: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: 60,
+    // height: '50%',
   },
   albumArt: {
-    width: 200,
-    height: 200,
+    width: 100,
+    height: 100,
     borderRadius: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(212, 0, 0, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
@@ -1378,7 +1376,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(234, 234, 234, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 30,
@@ -1404,7 +1402,7 @@ const styles = StyleSheet.create({
   doubleTapLeft: {
     position: 'absolute',
     left: 0,
-    top: '40%',
+    top: '55%',
     width: '30%',
     height: '20%',
     justifyContent: 'center',
@@ -1413,7 +1411,7 @@ const styles = StyleSheet.create({
   doubleTapRight: {
     position: 'absolute',
     right: 0,
-    top: '40%',
+    top: '55%',
     width: '30%',
     height: '20%',
     justifyContent: 'center',
@@ -1442,7 +1440,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFF',
+    color: '#fff',
     marginTop: 12,
   },
   emptyStateSubtext: {

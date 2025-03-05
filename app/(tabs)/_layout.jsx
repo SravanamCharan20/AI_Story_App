@@ -15,7 +15,7 @@ export default function TabsLayout() {
           right: 0,
           height: Platform.OS === 'ios' ? 85 : 65,
           paddingBottom: Platform.OS === 'ios' ? 25 : 10,
-          paddingTop: 10,
+          paddingTop: 0,
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           borderTopWidth: 0,
           elevation: 0,
@@ -28,6 +28,7 @@ export default function TabsLayout() {
           shadowRadius: 8,
           borderTopColor: 'rgba(0,0,0,0.1)',
           borderTopWidth: 0.5,
+          // borderRadius:'100%'
         },
         tabBarBackground: () => (
           <BlurView
@@ -47,7 +48,7 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontWeight: '600',
           fontSize: 11,
-          marginTop: -5,
+          marginTop: -6,
         },
         tabBarItemStyle: {
           paddingTop: 8,

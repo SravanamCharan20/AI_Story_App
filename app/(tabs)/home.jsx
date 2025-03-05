@@ -137,11 +137,11 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 80,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',

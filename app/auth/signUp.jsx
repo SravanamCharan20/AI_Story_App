@@ -159,7 +159,7 @@ export default function SignUp() {
     const { name, email, password } = formData;
 
     try {
-      const response = await fetch('http://192.168.2.249:3000/api/user/signup', {
+      const response = await fetch('http://192.168.26.67:3000/api/user/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
