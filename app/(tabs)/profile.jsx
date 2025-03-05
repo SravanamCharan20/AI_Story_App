@@ -1,13 +1,18 @@
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Animated } from 'react-native';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
 export default function Profile() {
+  const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [uploadedPdfs, setUploadedPdfs] = useState([]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -16,6 +21,22 @@ export default function Profile() {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  // Load existing PDFs on component mount
+  useEffect(() => {
+    loadUploadedPDFs();
+  }, []);
+
+  const loadUploadedPDFs = async () => {
+    try {
+      const savedPDFs = await AsyncStorage.getItem('uploadedPDFs');
+      if (savedPDFs) {
+        setUploadedPdfs(JSON.parse(savedPDFs));
+      }
+    } catch (error) {
+      console.log('Error loading PDFs:', error);
+    }
+  };
 
   const achievements = [
     { id: 1, title: "Bookworm", description: "Read 10 stories", icon: "book", progress: 8 },
@@ -28,6 +49,44 @@ export default function Profile() {
     { id: 2, name: "Fantasy", count: 12, color: ['#A18CD1', '#FBC2EB'] },
     { id: 3, name: "Animals", count: 8, color: ['#84FAB0', '#8FD3F4'] },
   ];
+
+  const handlePdfUpload = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.assets && result.assets[0]) {
+        const moods = ['happy', 'calm', 'mysterious', 'exciting'];
+        const randomMood = moods[Math.floor(Math.random() * moods.length)];
+        
+        const newPdf = {
+          id: Date.now(),
+          title: result.assets[0].name.replace('.pdf', ''),
+          name: result.assets[0].name,
+          uri: result.assets[0].uri,
+          size: (result.assets[0].size / 1024 / 1024).toFixed(2),
+          mood: randomMood,
+          duration: '5:00', // Demo duration
+          type: 'pdf',
+          thumbnail: null,
+        };
+
+        // Update local state
+        const updatedPdfs = [...uploadedPdfs, newPdf];
+        setUploadedPdfs(updatedPdfs);
+
+        // Save to AsyncStorage
+        await AsyncStorage.setItem('uploadedPDFs', JSON.stringify(updatedPdfs));
+
+        // Navigate to stories page
+        router.push('/(tabs)/stories');
+      }
+    } catch (error) {
+      console.log('Error picking document:', error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -112,6 +171,32 @@ export default function Profile() {
                 <Text style={styles.genreName}>{genre.name}</Text>
                 <Text style={styles.genreCount}>{genre.count} stories</Text>
               </LinearGradient>
+            </Animated.View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>PDF Documents</Text>
+        <View style={styles.pdfSection}>
+          <TouchableOpacity style={styles.uploadButton} onPress={handlePdfUpload}>
+            <Ionicons name="document-attach" size={24} color="#FF6B6B" />
+            <Text style={styles.uploadButtonText}>Upload PDF</Text>
+          </TouchableOpacity>
+          
+          {uploadedPdfs.map((pdf) => (
+            <Animated.View
+              key={pdf.id}
+              style={[styles.pdfCard, { opacity: fadeAnim }]}
+            >
+              <View style={styles.pdfIconContainer}>
+                <Ionicons name="document-text" size={24} color="#FF6B6B" />
+              </View>
+              <View style={styles.pdfInfo}>
+                <Text style={styles.pdfName} numberOfLines={1}>{pdf.name}</Text>
+                <Text style={styles.pdfSize}>{pdf.size} MB</Text>
+              </View>
+              <TouchableOpacity style={styles.viewButton}>
+                <Text style={styles.viewButtonText}>View</Text>
+              </TouchableOpacity>
             </Animated.View>
           ))}
         </View>
@@ -302,6 +387,69 @@ const styles = StyleSheet.create({
   signOutText: {
     color: '#FFF',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  pdfSection: {
+    paddingHorizontal: 20,
+    marginBottom: 25,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 16,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#FF6B6B',
+  },
+  uploadButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF6B6B',
+    marginLeft: 10,
+  },
+  pdfCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    borderRadius: 16,
+    padding: 15,
+    marginBottom: 10,
+  },
+  pdfIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  pdfInfo: {
+    flex: 1,
+  },
+  pdfName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  pdfSize: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  viewButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  viewButtonText: {
+    color: '#FFF',
+    fontSize: 12,
     fontWeight: '600',
   },
 });
