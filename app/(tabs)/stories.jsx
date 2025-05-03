@@ -12,10 +12,30 @@ import { PanResponder, TouchableWithoutFeedback } from 'react-native';
 const { width } = Dimensions.get('window');
 
 const moodColors = {
-  happy: ['#FFB7B7', '#FF8C8C'],
-  calm: ['#B7FFD8', '#8CFFC0'],
-  mysterious: ['#B7D4FF', '#8CB4FF'],
-  exciting: ['#FFB88C', '#FF6B6B'],
+  happy: ['#FAD0C4', '#FFD1FF'],         // Peachy Cream to Soft Orchid
+  sad: ['#A1C4FD', '#C2E9FB'],           // Light Steel Blue to Baby Blue
+  angry: ['#FF9A9E', '#FDCB82'],         // Watermelon Red to Toasted Apricot
+  joy: ['#F6D365', '#FDA085'],           // Soft Sunshine to Peach Blush
+  surprise: ['#FBC2EB', '#A6C1EE'],      // Blush Pink to Dreamy Blue
+  calm: ['#D4FC79', '#96E6A1'],          // Sage Green to Fresh Mint
+  mysterious: ['#667EEA', '#764BA2'],    // Indigo Fog to Royal Lavender
+  exciting: ['#FDCB82', '#F8A1D1'],      // Pastel Orange to Petal Pink
+  fear: ['#A18CD1', '#FBC2EB'],          // Dusky Purple to Misty Rose
+  disgust: ['#C1DFCB', '#DEECDD'],       // Pale Sage to Eucalyptus Frost
+  contempt: ['#C9D6FF', '#E2E2E2'],      // Blue Ice to Soft Silver
+  neutral: ['#ECE9E6', '#FFFFFF'],       // Whisper Gray to Pure White
+};
+
+
+const categoryColors = {
+  Fantasy: ['#FFB7B7', '#FF8C8C'],
+  Drama: ['#B7D4FF', '#8CB4FF'],
+  Adventure: ['#B7FFD8', '#8CFFC0'],
+  Mystery: ['#D4B7FF', '#B48CFF'],
+  Romance: ['black', 'black'],
+  'Sci-Fi': ['#B7FFE4', '#8CFFD4'],
+  Horror: ['#FFB7D4', '#FF8CB4'],
+  Comedy: ['#FFE4B7', '#FFD48C'],
 };
 
 // Using shorter audio files for better performance
@@ -74,30 +94,7 @@ export default function Stories() {
       thumbnail: null,
       type: "default"
     },
-    {
-      id: 2,
-      title: "Adventure Time",
-      mood: "exciting",
-      duration: "5:45",
-      thumbnail: null,
-      type: "default"
-    },
-    {
-      id: 3,
-      title: "Peaceful Garden",
-      mood: "calm",
-      duration: "6:15",
-      thumbnail: null,
-      type: "default"
-    },
-    {
-      id: 4,
-      title: "Fun Day Out",
-      mood: "happy",
-      duration: "7:00",
-      thumbnail: null,
-      type: "default"
-    },
+    
   ];
 
   const storyCategories = [
@@ -121,7 +118,8 @@ export default function Stories() {
       try {
         const uploadedPDFs = await AsyncStorage.getItem('uploadedPDFs');
         const pdfStories = uploadedPDFs ? JSON.parse(uploadedPDFs) : [];
-        setAllStories([...defaultStories, ...pdfStories]);
+        const stories = [...defaultStories, ...pdfStories];
+        setAllStories(stories);
       } catch (error) {
         console.log('Error loading stories:', error);
         setAllStories(defaultStories);
@@ -197,8 +195,14 @@ export default function Stories() {
       animatedValue.setValue(0);
       setIsPlaying(false);
 
-      // Load the audio file
-      await soundObject.current.loadAsync(moodAudios[story.mood]);
+      // Load the audio file based on story type
+      if (story.type === 'generated') {
+        // For generated stories, use the provided audioUrl
+        await soundObject.current.loadAsync({ uri: story.audioUrl });
+      } else {
+        // For default stories, use the mood-based audio
+        await soundObject.current.loadAsync(moodAudios[story.mood]);
+      }
       
       // Set initial volume
       await soundObject.current.setVolumeAsync(volume);
@@ -217,12 +221,19 @@ export default function Stories() {
 
   // Update the filtered stories logic
   const getFilteredStories = () => {
+    if (!allStories || !Array.isArray(allStories)) {
+      return [];
+    }
+
     return allStories
       .filter(story => {
+        if (!story) return false;
+        
         // Category filter
         if (selectedCategory !== "All") {
           if (selectedCategory === "My PDFs" && story.type !== "pdf") return false;
           if (selectedCategory === "Default Stories" && story.type !== "default") return false;
+          if (selectedCategory === "Generated Stories" && story.type !== "generated") return false;
         }
         
         // Mood filter
@@ -232,9 +243,9 @@ export default function Stories() {
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
           return (
-            story.title.toLowerCase().includes(query) ||
-            story.mood.toLowerCase().includes(query) ||
-            story.duration.toLowerCase().includes(query)
+            story.title?.toLowerCase().includes(query) ||
+            story.mood?.toLowerCase().includes(query) ||
+            story.duration?.toLowerCase().includes(query)
           );
         }
         
@@ -719,7 +730,7 @@ export default function Stories() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.categorySection}>
+        {/* <View style={styles.categorySection}>
           <Text style={styles.sectionTitle}>Categories</Text>
           <ScrollView
             horizontal
@@ -748,7 +759,7 @@ export default function Stories() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </View> */}
 
         <View style={styles.storiesSection}>
           <Text style={styles.sectionTitle}>Stories</Text>
@@ -756,49 +767,79 @@ export default function Stories() {
             styles.storiesGrid,
             viewMode === 'list' && styles.storiesListView
           ]}>
-            {sortStories(getFilteredStories()).map((story) => (
-              <TouchableWithoutFeedback
-                key={story.id}
-                onPress={() => handleCardPress(story)}
-              >
-                <Animated.View style={[
-                  styles.storyCard,
-                  viewMode === 'list' && styles.storyCardList,
-                  { transform: [{ scale: cardScale }] }
-                ]}>
-                  <LinearGradient
-                    colors={moodColors[story.mood]}
-                    style={styles.storyGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <View style={styles.cardContent}>
-                      <View style={styles.cardHeader}>
-                        <Text style={styles.storyTitle}>{story.title}</Text>
-                        {story.type === 'pdf' && (
-                          <View style={styles.pdfTag}>
-                            <Ionicons name="document-text" size={16} color="#1C1C1E" />
+            {sortStories(getFilteredStories())?.map((story) => (
+              story && (
+                <TouchableWithoutFeedback
+                  key={story.id}
+                  onPress={() => handleCardPress(story)}
+                >
+                  <Animated.View style={[
+                    styles.storyCard,
+                    viewMode === 'list' && styles.storyCardList,
+                    { transform: [{ scale: cardScale }] }
+                  ]}>
+                    <LinearGradient
+                      colors={moodColors[story.mood] || moodColors.happy}
+                      style={styles.storyGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <View style={styles.cardContent}>
+                        <View style={styles.cardHeader}>
+                          <Text style={styles.storyTitle} numberOfLines={2}>
+                            {story.title}
+                          </Text>
+                          {story.type === 'generated' && (
+                            <View style={styles.generatedTag}>
+                              <Ionicons name="sparkles" size={16} color="#1C1C1E" />
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.cardFooter}>
+                          <View style={styles.moodCategoryContainer}>
+                            <View style={[styles.moodBadge, { backgroundColor: getMoodColor(story.mood) }]}>
+                              <Ionicons 
+                                name={
+                                  story.mood === 'happy' ? 'sunny' :
+                                  story.mood === 'sad' ? 'sad' :
+                                  story.mood === 'angry' ? 'flame' :
+                                  story.mood === 'joy' ? 'happy' :
+                                  story.mood === 'surprise' ? 'alert' :
+                                  story.mood === 'calm' ? 'water' :
+                                  story.mood === 'mysterious' ? 'moon' : 'flash'
+                                } 
+                                size={14} 
+                                color="#1C1C1E" 
+                              />
+                              <Text style={styles.badgeText}>{story.mood}</Text>
+                            </View>
+                            <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(story.category) }]}>
+                              <Ionicons 
+                                name={
+                                  story.category === 'Fantasy' ? 'sparkles' :
+                                  story.category === 'Drama' ? 'film' :
+                                  story.category === 'Adventure' ? 'compass' :
+                                  story.category === 'Mystery' ? 'search' :
+                                  story.category === 'Romance' ? 'heart' :
+                                  story.category === 'Sci-Fi' ? 'rocket' :
+                                  story.category === 'Horror' ? 'skull' : 'happy'
+                                } 
+                                size={14} 
+                                color="#1C1C1E" 
+                              />
+                              <Text style={styles.badgeText}>{story.category}</Text>
+                            </View>
                           </View>
-                        )}
-                      </View>
-                      <View style={styles.cardFooter}>
-                        <View style={styles.moodTag}>
-                          <Ionicons 
-                            name={
-                              story.mood === 'happy' ? 'sunny' :
-                              story.mood === 'calm' ? 'water' :
-                              story.mood === 'mysterious' ? 'moon' : 'flash'
-                            } 
-                            size={14} 
-                            color="#1C1C1E" 
-                          />
-                          <Text style={styles.moodText}>{story.mood}</Text>
+                          <View style={styles.durationContainer}>
+                            <Ionicons name="time" size={14} color="#1C1C1E" />
+                            <Text style={styles.storyDuration}>{story.duration}</Text>
+                          </View>
                         </View>
                       </View>
-                    </View>
-                  </LinearGradient>
-                </Animated.View>
-              </TouchableWithoutFeedback>
+                    </LinearGradient>
+                  </Animated.View>
+                </TouchableWithoutFeedback>
+              )
             ))}
           </View>
         </View>
@@ -813,7 +854,7 @@ export default function Stories() {
         {selectedStory && (
           <View style={styles.playerModal}>
             <LinearGradient
-              colors={moodColors[selectedStory.mood]}
+              colors={moodColors[selectedStory.mood] || moodColors.happy}
               style={styles.playerGradient}
             >
               <View style={styles.modalHeader}>
@@ -834,6 +875,10 @@ export default function Stories() {
                   <Ionicons 
                     name={
                       selectedStory.mood === 'happy' ? 'sunny' :
+                      selectedStory.mood === 'sad' ? 'sad' :
+                      selectedStory.mood === 'angry' ? 'flame' :
+                      selectedStory.mood === 'joy' ? 'happy' :
+                      selectedStory.mood === 'surprise' ? 'alert' :
                       selectedStory.mood === 'calm' ? 'water' :
                       selectedStory.mood === 'mysterious' ? 'moon' : 'flash'
                     }
@@ -843,7 +888,41 @@ export default function Stories() {
                 </View>
                 
                 <Text style={styles.playerTitle}>{selectedStory.title}</Text>
-                <Text style={styles.playerMood}>{selectedStory.mood}</Text>
+                
+                <View style={styles.playerTags}>
+                  <View style={[styles.playerTag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                    <Ionicons 
+                      name={
+                        selectedStory.mood === 'happy' ? 'sunny' :
+                        selectedStory.mood === 'sad' ? 'sad' :
+                        selectedStory.mood === 'angry' ? 'flame' :
+                        selectedStory.mood === 'joy' ? 'happy' :
+                        selectedStory.mood === 'surprise' ? 'alert' :
+                        selectedStory.mood === 'calm' ? 'water' :
+                        selectedStory.mood === 'mysterious' ? 'moon' : 'flash'
+                      }
+                      size={16} 
+                      color="#FFF" 
+                    />
+                    <Text style={styles.playerTagText}>{selectedStory.mood}</Text>
+                  </View>
+                  <View style={[styles.playerTag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                    <Ionicons 
+                      name={
+                        selectedStory.category === 'Fantasy' ? 'sparkles' :
+                        selectedStory.category === 'Drama' ? 'film' :
+                        selectedStory.category === 'Adventure' ? 'compass' :
+                        selectedStory.category === 'Mystery' ? 'search' :
+                        selectedStory.category === 'Romance' ? 'heart' :
+                        selectedStory.category === 'Sci-Fi' ? 'rocket' :
+                        selectedStory.category === 'Horror' ? 'skull' : 'happy'
+                      }
+                      size={16} 
+                      color="#FFF" 
+                    />
+                    <Text style={styles.playerTagText}>{selectedStory.category}</Text>
+                  </View>
+                </View>
 
                 {isLoading ? (
                   <ActivityIndicator size="large" color="#FFF" style={styles.loader} />
@@ -1000,6 +1079,34 @@ export default function Stories() {
   );
 }
 
+const getMoodColor = (mood) => {
+  const moodColors = {
+    happy: '#FFB7B7',
+    sad: '#B7D4FF',
+    angry: '#FF8C8C',
+    joy: '#FFD700',
+    surprise: '#FFA07A',
+    calm: '#B7FFD8',
+    mysterious: '#B7D4FF',
+    exciting: '#FFB88C',
+  };
+  return moodColors[mood] || '#FF6B6B';
+};
+
+const getCategoryColor = (category) => {
+  const categoryColors = {
+    Fantasy: '#FFB7B7',
+    Drama: '#B7D4FF',
+    Adventure: '#B7FFD8',
+    Mystery: '#D4B7FF',
+    Romance: '#FFB7E4',
+    'Sci-Fi': '#B7FFE4',
+    Horror: '#FFB7D4',
+    Comedy: '#FFE4B7',
+  };
+  return categoryColors[category] || '#F0F0F0';
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1138,18 +1245,18 @@ const styles = StyleSheet.create({
   },
   storiesSection: {
     flex: 1,
+    paddingHorizontal: 16,
   },
   storiesGrid: {
-    paddingHorizontal: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 16,
   },
   storyCard: {
-    width: (width - 50) / 2,
-    height: 180,
-    borderRadius: 16,
+    width: (width - 48) / 2,
+    height: 210,
+    borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#FFF',
     shadowColor: "#000",
@@ -1160,80 +1267,155 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 15,
     elevation: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'black',
   },
   storyCardList: {
     width: '100%',
-    height: 120,
+    height: 170,
     marginBottom: 12,
   },
   storyGradient: {
     flex: 1,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'transparent',
+    padding: 16,
   },
   cardContent: {
     flex: 1,
     justifyContent: 'space-between',
-    padding: 16,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'transparent',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
+    marginBottom: 8,
+
   },
   storyTitle: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 8,
+    color: 'black',
     flex: 1,
     marginRight: 8,
+    lineHeight: 20,
   },
-  moodTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  moodText: {
-    color: '#1C1C1E',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 6,
-    textTransform: 'capitalize',
-  },
-  storyDuration: {
-    color: '#1C1C1E',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 10,
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  selectedCategory: {
-    transform: [{ scale: 1.05 }],
-  },
-  pdfTag: {
+  generatedTag: {
     backgroundColor: 'rgba(255,255,255,0.9)',
     padding: 8,
     borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardFooter: {
+    marginTop: 8,
+  },
+  moodCategoryContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  moodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  durationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  storyDuration: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  playerTags: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 20,
+    flexWrap: 'wrap',
+    
+  },
+  playerTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth:1,
+    borderColor:'black',
+  },
+  playerTagText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'black',
+    
   },
   playerModal: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   playerGradient: {
     flex: 1,
@@ -1245,27 +1427,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     marginBottom: 30,
+    
   },
   modalBackButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(249, 0, 0, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'black',
   },
   modalOptionButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'black',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '400',
+    color: 'black',
   },
   playerContent: {
     flex: 1,
@@ -1283,17 +1470,11 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   playerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#FFF',
+    color: 'black',
     textAlign: 'center',
     marginBottom: 10,
-  },
-  playerMood: {
-    fontSize: 16,
-    color: '#FFF',
-    opacity: 0.8,
-    marginBottom: 40,
   },
   loader: {
     marginVertical: 40,
@@ -1313,7 +1494,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
     borderRadius: 2,
   },
   playhead: {
@@ -1321,7 +1502,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 0, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     top: -8,
@@ -1348,6 +1529,8 @@ const styles = StyleSheet.create({
   timePreviewText: {
     color: '#FFF',
     fontSize: 12,
+    borderWidth: 1,
+    borderColor: 'black',
   },
   bufferingIndicator: {
     position: 'absolute',
@@ -1361,7 +1544,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   timeText: {
-    color: '#FFF',
+    color: 'black',
     fontSize: 14,
   },
   controls: {
@@ -1376,10 +1559,12 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'rgba(234, 234, 234, 0.2)',
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 30,
+    borderWidth: 1,
+    borderColor: 'black',
   },
   volumeContainer: {
     flexDirection: 'row',
@@ -1418,13 +1603,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   doubleTapOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(255, 0, 0, 0.3)',
     padding: 10,
     borderRadius: 20,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'black',
   },
   doubleTapText: {
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'rgba(0, 0, 0, 0.5)',
     fontSize: 12,
     marginTop: 4,
   },

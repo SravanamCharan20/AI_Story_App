@@ -79,108 +79,111 @@ export default function Trending() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Trending Now 🔥</Text>
-          <TouchableOpacity style={styles.statsButton}>
-            <Ionicons name="stats-chart" size={22} color="#666" />
-          </TouchableOpacity>
-        </View>
+    // <SafeAreaView style={styles.container}>
+    //   <ScrollView
+    //     showsVerticalScrollIndicator={false}
+    //     contentContainerStyle={styles.scrollContent}
+    //   >
+    //     <View style={styles.header}>
+    //       <Text style={styles.headerTitle}>Trending Now 🔥</Text>
+    //       <TouchableOpacity style={styles.statsButton}>
+    //         <Ionicons name="stats-chart" size={22} color="#666" />
+    //       </TouchableOpacity>
+    //     </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.trendingContainer}
-          decelerationRate="fast"
-          snapToInterval={CARD_WIDTH + 20}
-        >
-          {trendingStories.map((story, index) => (
-            <Animated.View
-              key={story.id}
-              style={[
-                styles.trendingCard,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ scale: scaleAnim }],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={story.color}
-                style={styles.cardGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <View style={styles.trendingHeader}>
-                  <Ionicons name={story.icon} size={28} color="#FFF" />
-                  <View style={styles.trendBadge}>
-                    <Ionicons name="trending-up" size={14} color="#00B07C" />
-                    <Text style={styles.trendText}>{story.trend}</Text>
-                  </View>
-                </View>
-                <Text style={styles.trendingTitle}>{story.title}</Text>
-                <Text style={styles.viewsText}>{story.views} readers this week</Text>
-              </LinearGradient>
-            </Animated.View>
-          ))}
-        </ScrollView>
+    //     <ScrollView
+    //       horizontal
+    //       showsHorizontalScrollIndicator={false}
+    //       contentContainerStyle={styles.trendingContainer}
+    //       decelerationRate="fast"
+    //       snapToInterval={CARD_WIDTH + 20}
+    //     >
+    //       {trendingStories.map((story, index) => (
+    //         <Animated.View
+    //           key={story.id}
+    //           style={[
+    //             styles.trendingCard,
+    //             {
+    //               opacity: fadeAnim,
+    //               transform: [{ scale: scaleAnim }],
+    //             },
+    //           ]}
+    //         >
+    //           <LinearGradient
+    //             colors={story.color}
+    //             style={styles.cardGradient}
+    //             start={{ x: 0, y: 0 }}
+    //             end={{ x: 1, y: 1 }}
+    //           >
+    //             <View style={styles.trendingHeader}>
+    //               <Ionicons name={story.icon} size={28} color="#FFF" />
+    //               <View style={styles.trendBadge}>
+    //                 <Ionicons name="trending-up" size={14} color="#00B07C" />
+    //                 <Text style={styles.trendText}>{story.trend}</Text>
+    //               </View>
+    //             </View>
+    //             <Text style={styles.trendingTitle}>{story.title}</Text>
+    //             <Text style={styles.viewsText}>{story.views} readers this week</Text>
+    //           </LinearGradient>
+    //         </Animated.View>
+    //       ))}
+    //     </ScrollView>
 
-        <View style={styles.weeklySection}>
-          <Text style={styles.sectionTitle}>Weekly Highlights</Text>
-          {weeklyHighlights.map((highlight, index) => (
-            <Animated.View
-              key={highlight.id}
-              style={[
-                styles.highlightCard,
-                {
-                  opacity: fadeAnim,
-                  transform: [{
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [50 * (index + 1), 0],
-                    }),
-                  }],
-                },
-              ]}
-            >
-              <View style={styles.highlightIcon}>
-                <Ionicons name={highlight.icon} size={24} color="#FF6B6B" />
-              </View>
-              <View style={styles.highlightInfo}>
-                <Text style={styles.highlightTitle}>{highlight.title}</Text>
-                <Text style={styles.highlightStory}>{highlight.story}</Text>
-                <Text style={styles.highlightCount}>{highlight.count}</Text>
-              </View>
-              <TouchableOpacity style={styles.arrowButton}>
-                <Ionicons name="chevron-forward" size={20} color="#666" />
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-        </View>
+    //     <View style={styles.weeklySection}>
+    //       <Text style={styles.sectionTitle}>Weekly Highlights</Text>
+    //       {weeklyHighlights.map((highlight, index) => (
+    //         <Animated.View
+    //           key={highlight.id}
+    //           style={[
+    //             styles.highlightCard,
+    //             {
+    //               opacity: fadeAnim,
+    //               transform: [{
+    //                 translateY: fadeAnim.interpolate({
+    //                   inputRange: [0, 1],
+    //                   outputRange: [50 * (index + 1), 0],
+    //                 }),
+    //               }],
+    //             },
+    //           ]}
+    //         >
+    //           <View style={styles.highlightIcon}>
+    //             <Ionicons name={highlight.icon} size={24} color="#FF6B6B" />
+    //           </View>
+    //           <View style={styles.highlightInfo}>
+    //             <Text style={styles.highlightTitle}>{highlight.title}</Text>
+    //             <Text style={styles.highlightStory}>{highlight.story}</Text>
+    //             <Text style={styles.highlightCount}>{highlight.count}</Text>
+    //           </View>
+    //           <TouchableOpacity style={styles.arrowButton}>
+    //             <Ionicons name="chevron-forward" size={20} color="#666" />
+    //           </TouchableOpacity>
+    //         </Animated.View>
+    //       ))}
+    //     </View>
 
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Quick Stats</Text>
-          <View style={styles.statsGrid}>
-            {[
-              { title: "Total Reads", value: "45.2K", icon: "book" },
-              { title: "Active Readers", value: "12.8K", icon: "people" },
-              { title: "Avg. Rating", value: "4.8", icon: "star" },
-              { title: "Stories", value: "250+", icon: "library" },
-            ].map((stat, index) => (
-              <View key={index} style={styles.statCard}>
-                <Ionicons name={stat.icon} size={24} color="#FF6B6B" />
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statTitle}>{stat.title}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    //     <View style={styles.statsSection}>
+    //       <Text style={styles.sectionTitle}>Quick Stats</Text>
+    //       <View style={styles.statsGrid}>
+    //         {[
+    //           { title: "Total Reads", value: "45.2K", icon: "book" },
+    //           { title: "Active Readers", value: "12.8K", icon: "people" },
+    //           { title: "Avg. Rating", value: "4.8", icon: "star" },
+    //           { title: "Stories", value: "250+", icon: "library" },
+    //         ].map((stat, index) => (
+    //           <View key={index} style={styles.statCard}>
+    //             <Ionicons name={stat.icon} size={24} color="#FF6B6B" />
+    //             <Text style={styles.statValue}>{stat.value}</Text>
+    //             <Text style={styles.statTitle}>{stat.title}</Text>
+    //           </View>
+    //         ))}
+    //       </View>
+    //     </View>
+    //   </ScrollView>
+    // </SafeAreaView>
+    <View style = {{flex:1, justifyContent:'center', alignItems:'center',fontSize:20}}>
+      <Text>Trending Page</Text>
+    </View>
   );
 }
 

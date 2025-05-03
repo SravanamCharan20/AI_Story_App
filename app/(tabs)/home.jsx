@@ -34,104 +34,107 @@ export default function Home() {
   ];
 
   return (
-    <ScreenWrapper>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Good Morning! 👋</Text>
-            <Text style={styles.name}>Little Explorer</Text>
-          </View>
-          <TouchableOpacity style={styles.searchButton}>
-            <Ionicons name="search" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
+    // <ScreenWrapper>
+    //   <ScrollView
+    //     showsVerticalScrollIndicator={false}
+    //     onScroll={Animated.event(
+    //       [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    //       { useNativeDriver: false }
+    //     )}
+    //     scrollEventThrottle={16}
+    //     contentContainerStyle={styles.scrollContent}
+    //   >
+    //     <View style={styles.header}>
+    //       <View>
+    //         <Text style={styles.greeting}>Good Morning! 👋</Text>
+    //         <Text style={styles.name}>Little Explorer</Text>
+    //       </View>
+    //       <TouchableOpacity style={styles.searchButton}>
+    //         <Ionicons name="search" size={24} color="#666" />
+    //       </TouchableOpacity>
+    //     </View>
 
-        <Text style={styles.sectionTitle}>Continue Reading</Text>
+    //     <Text style={styles.sectionTitle}>Continue Reading</Text>
         
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.featuredContainer}
-          decelerationRate="fast"
-          snapToInterval={CARD_WIDTH + 20}
-        >
-          {featuredStories.map((story, index) => (
-            <Animated.View
-              key={story.id}
-              style={[
-                styles.featuredCard,
-                {
-                  opacity: fadeAnim,
-                  transform: [
-                    {
-                      translateY: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [50, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={story.color}
-                style={styles.cardGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle}>{story.title}</Text>
-                  <View style={styles.cardMeta}>
-                    <Text style={styles.cardMetaText}>Age {story.age}</Text>
-                    <Text style={styles.cardMetaText}>{story.duration}</Text>
-                  </View>
-                  <TouchableOpacity style={styles.playButton}>
-                    <Ionicons name="play" size={24} color="#FF6B6B" />
-                  </TouchableOpacity>
-                </View>
-              </LinearGradient>
-            </Animated.View>
-          ))}
-        </ScrollView>
+    //     <ScrollView
+    //       horizontal
+    //       showsHorizontalScrollIndicator={false}
+    //       contentContainerStyle={styles.featuredContainer}
+    //       decelerationRate="fast"
+    //       snapToInterval={CARD_WIDTH + 20}
+    //     >
+    //       {featuredStories.map((story, index) => (
+    //         <Animated.View
+    //           key={story.id}
+    //           style={[
+    //             styles.featuredCard,
+    //             {
+    //               opacity: fadeAnim,
+    //               transform: [
+    //                 {
+    //                   translateY: fadeAnim.interpolate({
+    //                     inputRange: [0, 1],
+    //                     outputRange: [50, 0],
+    //                   }),
+    //                 },
+    //               ],
+    //             },
+    //           ]}
+    //         >
+    //           <LinearGradient
+    //             colors={story.color}
+    //             style={styles.cardGradient}
+    //             start={{ x: 0, y: 0 }}
+    //             end={{ x: 1, y: 1 }}
+    //           >
+    //             <View style={styles.cardContent}>
+    //               <Text style={styles.cardTitle}>{story.title}</Text>
+    //               <View style={styles.cardMeta}>
+    //                 <Text style={styles.cardMetaText}>Age {story.age}</Text>
+    //                 <Text style={styles.cardMetaText}>{story.duration}</Text>
+    //               </View>
+    //               <TouchableOpacity style={styles.playButton}>
+    //                 <Ionicons name="play" size={24} color="#FF6B6B" />
+    //               </TouchableOpacity>
+    //             </View>
+    //           </LinearGradient>
+    //         </Animated.View>
+    //       ))}
+    //     </ScrollView>
 
-        <Text style={styles.sectionTitle}>Categories</Text>
-        <View style={styles.categoriesGrid}>
-          {categories.map((category) => (
-            <TouchableOpacity key={category.id} style={styles.categoryCard}>
-              <View style={styles.categoryIcon}>
-                <Ionicons name={category.icon} size={24} color="#FF6B6B" />
-              </View>
-              <Text style={styles.categoryTitle}>{category.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+    //     <Text style={styles.sectionTitle}>Categories</Text>
+    //     <View style={styles.categoriesGrid}>
+    //       {categories.map((category) => (
+    //         <TouchableOpacity key={category.id} style={styles.categoryCard}>
+    //           <View style={styles.categoryIcon}>
+    //             <Ionicons name={category.icon} size={24} color="#FF6B6B" />
+    //           </View>
+    //           <Text style={styles.categoryTitle}>{category.title}</Text>
+    //         </TouchableOpacity>
+    //       ))}
+    //     </View>
 
-        <View style={styles.recommendedSection}>
-          <Text style={styles.sectionTitle}>Recommended for You</Text>
-          <TouchableOpacity style={styles.recommendedCard}>
-            <LinearGradient
-              colors={['#FFE5E5', '#FFD6D6']}
-              style={styles.recommendedGradient}
-            >
-              <View style={styles.recommendedContent}>
-                <Text style={styles.recommendedTitle}>New Stories Added!</Text>
-                <Text style={styles.recommendedSubtitle}>
-                  Discover 5 new magical adventures
-                </Text>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </ScreenWrapper>
+    //     <View style={styles.recommendedSection}>
+    //       <Text style={styles.sectionTitle}>Recommended for You</Text>
+    //       <TouchableOpacity style={styles.recommendedCard}>
+    //         <LinearGradient
+    //           colors={['#FFE5E5', '#FFD6D6']}
+    //           style={styles.recommendedGradient}
+    //         >
+    //           <View style={styles.recommendedContent}>
+    //             <Text style={styles.recommendedTitle}>New Stories Added!</Text>
+    //             <Text style={styles.recommendedSubtitle}>
+    //               Discover 5 new magical adventures
+    //             </Text>
+    //           </View>
+    //         </LinearGradient>
+    //       </TouchableOpacity>
+    //     </View>
+    //   </ScrollView>
+    // </ScreenWrapper>
+    <View style = {{flex:1, justifyContent:'center', alignItems:'center'}}>
+      <Text>Home Page</Text>
+    </View>
   );
 }
 

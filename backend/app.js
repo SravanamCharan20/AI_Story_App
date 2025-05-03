@@ -11,7 +11,7 @@ dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-  origin: 'http://192.168.26.67:8081', // Replace with your Expo app URL
+  origin: 'http://192.168.0.105:8081', // Replace with your Expo app URL
   credentials: true // Important for cookies
 }));
 
