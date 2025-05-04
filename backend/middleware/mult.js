@@ -1,7 +1,7 @@
-const multer=require("multer");
+import multer, { memoryStorage } from "multer";
 
-const path=require("path"); 
-const storage=multer.memoryStorage()
+import path from "path"; 
+const storage=memoryStorage()
 
 const fileFilter =(req,file,cb)=>{
     const allowedTypes=["audio/mpeg","audio/wav","audio/ogg",'audio/mp3']
@@ -19,4 +19,4 @@ const upload=multer({
 
 })
 
-module.exports=uploads
+export default upload

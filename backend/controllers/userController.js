@@ -1,7 +1,12 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
+
+import jwt from 'jsonwebtoken';
+const { sign, verify } = jwt;
+
+import User from '../models/User.js';
+import { compare, genSalt, hash } from 'bcryptjs';
+
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -9,13 +14,13 @@ const JWT_EXPIRES_IN = '30d';
 
 // Create JWT Token
 const createToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, {
+  return sign({ userId }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN
   });
 };
 
 // Login user
-exports.login = async (req, res) => {
+export async function login(req, res) {
   try {
     const { email, password } = req.body;
 
@@ -26,7 +31,7 @@ exports.login = async (req, res) => {
     }
 
     // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -43,35 +48,29 @@ exports.login = async (req, res) => {
     });
 
     // Return user data (excluding password)
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      // Add any other user fields you want to send
-    };
-
+    const { _id, name } = user;
     res.status(200).json({
       message: 'Login successful',
-      user: userData
+      user: { _id, name, email }
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-};
+}
 
 // Validate session
-exports.validateSession = async (req, res) => {
+export async function validateSession(req, res) {
   try {
     const token = req.cookies.token;
-    
+
     if (!token) {
       return res.status(401).json({ message: 'No token found' });
     }
 
     // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
+    const decoded = verify(token, JWT_SECRET);
+
     // Check if user still exists
     const user = await User.findById(decoded.userId).select('-password');
     if (!user) {
@@ -83,12 +82,11 @@ exports.validateSession = async (req, res) => {
     console.error('Session validation error:', error);
     res.status(401).json({ message: 'Invalid session' });
   }
-};
+}
 
 // Logout user
-exports.logout = async (req, res) => {
+export async function logout(req, res) {
   try {
-    // Clear the token cookie
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -100,10 +98,10 @@ exports.logout = async (req, res) => {
     console.error('Logout error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-};
+}
 
 // Signup user
-exports.signup = async (req, res) => {
+export async function signup(req, res) {
   try {
     const { name, email, password } = req.body;
 
@@ -114,8 +112,8 @@ exports.signup = async (req, res) => {
     }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const salt = await genSalt(10);
+    const hashedPassword = await hash(password, salt);
 
     // Create new user
     user = new User({
@@ -134,23 +132,17 @@ exports.signup = async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      // maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
     // Return user data (excluding password)
-    const userData = {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      // Add any other user fields you want to send
-    };
-
+    const { _id } = user;
     res.status(201).json({
       message: 'User created successfully',
-      user: userData
+      user: { _id, name, email }
     });
   } catch (error) {
     console.error('Signup error:', error);
     res.status(500).json({ message: 'Server error' });
   }
-}; 
+}

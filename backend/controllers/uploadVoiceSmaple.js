@@ -1,8 +1,8 @@
-const voiceSample=requires('../models/voiceSample');
-const fs = require('fs');
-const path = require('path');
+import voiceSample from '../models/voiceSample.js';
+import fs from 'fs';
+import path from 'path';
 
-exports.uploadVoiceSample = async (req, res) =>{
+export async function uploadVoiceSample(req, res){
     try{
         const userId=req.user._id;
         const file=req.file;
@@ -28,4 +28,4 @@ exports.uploadVoiceSample = async (req, res) =>{
         console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
-};
+}

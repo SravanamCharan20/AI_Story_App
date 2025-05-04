@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Button } from 'react-native';
+
 
 const { width } = Dimensions.get('window');
 
@@ -60,7 +62,15 @@ export default function Profile() {
       console.log('Error picking audio:', error);
     }
   };
-
+  const clearStorage = async () => {
+    try {
+      await AsyncStorage.clear();
+      console.log('AsyncStorage cleared!');
+      alert('Storage cleared');
+    } catch (e) {
+      console.log('Error clearing AsyncStorage:', e);
+    }
+  };
   const handleStoryUpload = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -207,6 +217,8 @@ export default function Profile() {
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity> */}
       </ScrollView>
+      <Button title="Clear Storage" onPress={clearStorage} />
+
     </SafeAreaView>
   );
 }

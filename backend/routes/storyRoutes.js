@@ -1,10 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const {getStoryVoiceCombination}=require('../controllers/storyController')
-const auth = require('../middleware/auth');
-const {uploadVoiceSample}=require('../controllers/voiceSampleController')
-const mult = require('../middleware/mult')
+import { Router } from 'express';
+const router = Router();
+import { getStoryVoiceCombination } from '../controllers/storyController.js';
+import auth from '../middleware/auth.js';;
 
 router.get('/getStoryVoiceCombination',auth,getStoryVoiceCombination);
 
-module.exports = router;
+export default router;

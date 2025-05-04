@@ -1,17 +1,17 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cookieParser = require('cookie-parser');
-const cors = require('cors');
-const userRoutes = require('./routes/userRoutes');
-const dotenv = require('dotenv')
+import express, { json } from 'express';
+import { connect } from 'mongoose';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import userRoutes from './routes/userRoutes.js';
+import { config } from 'dotenv';
 
 const app = express();
-dotenv.config();
+config();
 // Middleware
-app.use(express.json());
+app.use(json());
 app.use(cookieParser());
 app.use(cors({
-  origin: 'http://192.168.0.105:8081', // Replace with your Expo app URL
+  origin: ['http://localhost:8081', 'http://192.168.0.105:8081'],
   credentials: true // Important for cookies
 }));
 
@@ -19,7 +19,7 @@ app.use(cors({
 app.use('/api/user', userRoutes);
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO)
+connect(process.env.MONGO)
 .then(() => console.log('Connected to MongoDB'))
 .catch(err => console.error('MongoDB connection error:', err));
 

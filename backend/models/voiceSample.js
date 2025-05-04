@@ -1,10 +1,10 @@
 // models/VoiceSample.js
 
-const mongoose = require('mongoose');
+import { Schema, model } from 'mongoose';
 
-const voiceSampleSchema = new mongoose.Schema({
+const voiceSampleSchema = new Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
@@ -44,4 +44,4 @@ const voiceSampleSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('VoiceSample', voiceSampleSchema);
+export default model('VoiceSample', voiceSampleSchema);

@@ -1,5 +1,5 @@
-const Story = require('../models/storyModel');
-const VoiceSample = require('../models/voiceSample');
+import { findById } from '../models/storyModel.js';
+import { findById as _findById } from '../models/voiceSample.js';
 
 const getStoryVoiceCombination = async (req, res) => {
   try {
@@ -10,8 +10,8 @@ const getStoryVoiceCombination = async (req, res) => {
     }
 
     // Fetch the story and voiceSample documents from the DB
-    const story = await Story.findById(storyId);
-    const voice = await VoiceSample.findById(voiceId);
+    const story = await findById(storyId);
+    const voice = await _findById(voiceId);
 
     if (!story || !voice) {
       return res.status(404).json({ message: "Story or voice not found" });
@@ -36,4 +36,4 @@ const getStoryVoiceCombination = async (req, res) => {
   }
 };
 
-module.exports = { getStoryVoiceCombination };
+export default { getStoryVoiceCombination };
