@@ -556,16 +556,16 @@ export default function Stories() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Story Time 🎯</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconButton}>
+    <SafeAreaView className="flex-1 bg-background-secondary">
+      <View className="px-5 pt-5 bg-white border-b border-gray-200">
+        <View className="flex-row justify-between items-center mb-5">
+          <Text className="text-3xl font-extrabold text-text-primary tracking-tight">Story Time 🎯</Text>
+          <View className="flex-row items-center gap-4">
+            <TouchableOpacity className="w-11 h-11 rounded-full bg-secondary justify-center items-center shadow-sm">
               <Ionicons name="notifications-outline" size={22} color="#666" />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.viewModeButton}
+              className="w-11 h-11 rounded-full bg-secondary justify-center items-center shadow-sm"
               onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
             >
               <Ionicons 
@@ -577,15 +577,12 @@ export default function Stories() {
           </View>
         </View>
 
-        <View style={styles.searchContainer}>
-          <Animated.View style={[
-            styles.searchInputContainer,
-            { flex: searchBarAnimation }
-          ]}>
-            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <View className="flex-row items-center gap-3 mb-5">
+          <View className="flex-1 flex-row items-center bg-secondary rounded-2xl px-4 h-12 shadow-sm">
+            <Ionicons name="search" size={20} color="#666" className="mr-3" />
             <TextInput
               ref={searchInputRef}
-              style={styles.searchInput}
+              className="flex-1 text-base text-text-primary font-medium py-3"
               placeholder="Search stories..."
               placeholderTextColor="#999"
               value={searchQuery}
@@ -595,26 +592,10 @@ export default function Stories() {
                   setSelectedMood('All');
                 }
               }}
-              onFocus={() => {
-                Animated.spring(searchBarAnimation, {
-                  toValue: 1,
-                  useNativeDriver: false,
-                  friction: 8,
-                }).start();
-              }}
-              onBlur={() => {
-                if (!searchQuery) {
-                  Animated.spring(searchBarAnimation, {
-                    toValue: 0.85,
-                    useNativeDriver: false,
-                    friction: 8,
-                  }).start();
-                }
-              }}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity 
-                style={styles.clearButton}
+                className="p-2"
                 onPress={() => {
                   setSearchQuery('');
                   searchInputRef.current?.blur();
@@ -623,12 +604,9 @@ export default function Stories() {
                 <Ionicons name="close-circle" size={20} color="#999" />
               </TouchableOpacity>
             )}
-          </Animated.View>
+          </View>
           <TouchableOpacity 
-            style={[
-              styles.filterButton, 
-              showFilters && styles.filterButtonActive
-            ]}
+            className={`w-12 h-12 rounded-2xl justify-center items-center shadow-sm ${showFilters ? 'bg-primary' : 'bg-secondary'}`}
             onPress={() => {
               setShowFilters(!showFilters);
               Animated.spring(filterAnimation, {
@@ -643,35 +621,31 @@ export default function Stories() {
         </View>
 
         <Animated.View 
-          style={[
-            styles.filterPanel,
-            {
-              transform: [{
-                translateY: filterAnimation.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-20, 0],
-                })
-              }],
-              opacity: filterAnimation
-            }
-          ]}
+          className={`bg-white rounded-3xl p-4 mb-5 mt-2.5 shadow-md ${showFilters ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            transform: [{
+              translateY: filterAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-20, 0],
+              })
+            }]
+          }}
         >
           {showFilters && (
             <>
-              <View style={styles.filterSection}>
-                <Text style={styles.filterTitle}>Sort By</Text>
+              <View className="mb-4">
+                <Text className="text-base font-semibold text-text-primary mb-3">Sort By</Text>
                 <ScrollView 
                   horizontal 
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.filterOptionsContainer}
+                  className="flex-row gap-2"
                 >
                   {['newest', 'duration'].map((option) => (
                     <TouchableOpacity
                       key={option}
-                      style={[
-                        styles.filterOption,
-                        sortBy === option && styles.filterOptionActive
-                      ]}
+                      className={`flex-row items-center px-4 py-2.5 rounded-2xl gap-2 ${
+                        sortBy === option ? 'bg-primary' : 'bg-secondary'
+                      }`}
                       onPress={() => setSortBy(option)}
                     >
                       <Ionicons 
@@ -679,10 +653,9 @@ export default function Stories() {
                         size={18} 
                         color={sortBy === option ? "#FFF" : "#666"}
                       />
-                      <Text style={[
-                        styles.filterOptionText,
-                        sortBy === option && styles.filterOptionTextActive
-                      ]}>
+                      <Text className={`text-sm font-medium ${
+                        sortBy === option ? 'text-white' : 'text-text-secondary'
+                      }`}>
                         {option.charAt(0).toUpperCase() + option.slice(1)}
                       </Text>
                     </TouchableOpacity>
@@ -690,20 +663,19 @@ export default function Stories() {
                 </ScrollView>
               </View>
 
-              <View style={styles.filterSection}>
-                <Text style={styles.filterTitle}>Mood</Text>
+              <View>
+                <Text className="text-base font-semibold text-text-primary mb-3">Mood</Text>
                 <ScrollView 
                   horizontal 
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.filterOptionsContainer}
+                  className="flex-row gap-2"
                 >
                   {moodFilters.map((mood) => (
                     <TouchableOpacity
                       key={mood.id}
-                      style={[
-                        styles.filterOption,
-                        selectedMood === mood.title && styles.filterOptionActive
-                      ]}
+                      className={`flex-row items-center px-4 py-2.5 rounded-2xl gap-2 ${
+                        selectedMood === mood.title ? 'bg-primary' : 'bg-secondary'
+                      }`}
                       onPress={() => setSelectedMood(mood.title)}
                     >
                       <Ionicons 
@@ -711,10 +683,9 @@ export default function Stories() {
                         size={18} 
                         color={selectedMood === mood.title ? "#FFF" : "#666"}
                       />
-                      <Text style={[
-                        styles.filterOptionText,
-                        selectedMood === mood.title && styles.filterOptionTextActive
-                      ]}>
+                      <Text className={`text-sm font-medium ${
+                        selectedMood === mood.title ? 'text-white' : 'text-text-secondary'
+                      }`}>
                         {mood.title}
                       </Text>
                     </TouchableOpacity>
@@ -728,76 +699,42 @@ export default function Stories() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        className="flex-1 px-4"
       >
-        {/* <View style={styles.categorySection}>
-          <Text style={styles.sectionTitle}>Categories</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-            decelerationRate="fast"
-            snapToInterval={width * 0.4 + 20}
-          >
-            {storyCategories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryCard,
-                  selectedCategory === category.title && styles.selectedCategory
-                ]}
-                onPress={() => setSelectedCategory(category.title)}
-              >
-                <LinearGradient
-                  colors={category.color}
-                  style={styles.categoryGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Text style={styles.categoryTitle}>{category.title}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View> */}
-
-        <View style={styles.storiesSection}>
-          <Text style={styles.sectionTitle}>Stories</Text>
-          <View style={[
-            styles.storiesGrid,
-            viewMode === 'list' && styles.storiesListView
-          ]}>
+        <View className="py-4">
+          <Text className="text-2xl font-bold text-text-primary mb-4">Stories</Text>
+          <View className={`flex-row flex-wrap justify-between gap-4 ${
+            viewMode === 'list' ? 'flex-col' : ''
+          }`}>
             {sortStories(getFilteredStories())?.map((story) => (
               story && (
                 <TouchableWithoutFeedback
                   key={story.id}
                   onPress={() => handleCardPress(story)}
                 >
-                  <Animated.View style={[
-                    styles.storyCard,
-                    viewMode === 'list' && styles.storyCardList,
-                    { transform: [{ scale: cardScale }] }
-                  ]}>
+                  <Animated.View className={`${
+                    viewMode === 'list' ? 'w-full h-[180px] mb-3' : 'w-[calc(50%-8px)] h-[240px] mb-4'
+                  } rounded-3xl overflow-hidden bg-white shadow-lg`}>
                     <LinearGradient
                       colors={moodColors[story.mood] || moodColors.happy}
-                      style={styles.storyGradient}
+                      className="flex-1 p-4"
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                     >
-                      <View style={styles.cardContent}>
-                        <View style={styles.cardHeader}>
-                          <Text style={styles.storyTitle} numberOfLines={2}>
+                      <View className="flex-1 justify-between">
+                        <View className="flex-row justify-between items-start mb-2">
+                          <Text className="text-xl font-bold text-white flex-1 mr-2 leading-6" numberOfLines={2}>
                             {story.title}
                           </Text>
                           {story.type === 'generated' && (
-                            <View style={styles.generatedTag}>
+                            <View className="bg-white/90 px-2 py-1 rounded-2xl shadow-sm">
                               <Ionicons name="sparkles" size={16} color="#1C1C1E" />
                             </View>
                           )}
                         </View>
-                        <View style={styles.cardFooter}>
-                          <View style={styles.moodCategoryContainer}>
-                            <View style={[styles.moodBadge, { backgroundColor: getMoodColor(story.mood) }]}>
+                        <View className="mt-2">
+                          <View className="flex-row gap-2 mb-2 flex-wrap">
+                            <View className="flex-row items-center px-3 py-1.5 rounded-2xl gap-1.5 bg-white/90 shadow-sm">
                               <Ionicons 
                                 name={
                                   story.mood === 'happy' ? 'sunny' :
@@ -811,9 +748,9 @@ export default function Stories() {
                                 size={14} 
                                 color="#1C1C1E" 
                               />
-                              <Text style={styles.badgeText}>{story.mood}</Text>
+                              <Text className="text-xs font-semibold text-text-primary">{story.mood}</Text>
                             </View>
-                            <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(story.category) }]}>
+                            <View className="flex-row items-center px-3 py-1.5 rounded-2xl gap-1.5 bg-white/90 shadow-sm">
                               <Ionicons 
                                 name={
                                   story.category === 'Fantasy' ? 'sparkles' :
@@ -827,12 +764,12 @@ export default function Stories() {
                                 size={14} 
                                 color="#1C1C1E" 
                               />
-                              <Text style={styles.badgeText}>{story.category}</Text>
+                              <Text className="text-xs font-semibold text-text-primary">{story.category}</Text>
                             </View>
                           </View>
-                          <View style={styles.durationContainer}>
+                          <View className="flex-row items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-2xl self-start shadow-sm">
                             <Ionicons name="time" size={14} color="#1C1C1E" />
-                            <Text style={styles.storyDuration}>{story.duration}</Text>
+                            <Text className="text-xs font-semibold text-text-primary">{story.duration}</Text>
                           </View>
                         </View>
                       </View>
@@ -852,26 +789,26 @@ export default function Stories() {
         onRequestClose={handleClose}
       >
         {selectedStory && (
-          <View style={styles.playerModal}>
+          <View className="flex-1">
             <LinearGradient
               colors={moodColors[selectedStory.mood] || moodColors.happy}
-              style={styles.playerGradient}
+              className="flex-1 pt-10"
             >
-              <View style={styles.modalHeader}>
+              <View className="flex-row items-center justify-between px-5 mb-8">
                 <TouchableOpacity
-                  style={styles.modalBackButton}
+                  className="w-11 h-11 rounded-full bg-white/20 justify-center items-center shadow-sm"
                   onPress={handleClose}
                 >
                   <Ionicons name="chevron-down" size={24} color="#FFF" />
                 </TouchableOpacity>
-                <Text style={styles.modalTitle}>Now Playing</Text>
-                <TouchableOpacity style={styles.modalOptionButton}>
+                <Text className="text-xl font-semibold text-text-primary">Now Playing</Text>
+                <TouchableOpacity className="w-11 h-11 rounded-full bg-white/20 justify-center items-center shadow-sm">
                   <Ionicons name="ellipsis-horizontal" size={12} color="#FFF" />
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.playerContent}>
-                <View style={styles.albumArt}>
+              <View className="flex-1 items-center px-10">
+                <View className="w-[280px] h-[280px] rounded-3xl bg-white/20 justify-center items-center mb-8 shadow-lg">
                   <Ionicons 
                     name={
                       selectedStory.mood === 'happy' ? 'sunny' :
@@ -887,10 +824,10 @@ export default function Stories() {
                   />
                 </View>
                 
-                <Text style={styles.playerTitle}>{selectedStory.title}</Text>
+                <Text className="text-3xl font-bold text-text-primary text-center mb-4">{selectedStory.title}</Text>
                 
-                <View style={styles.playerTags}>
-                  <View style={[styles.playerTag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                <View className="flex-row justify-center gap-3 mb-8 flex-wrap">
+                  <View className="flex-row items-center px-4 py-2 rounded-3xl gap-1.5 bg-white/20 shadow-sm">
                     <Ionicons 
                       name={
                         selectedStory.mood === 'happy' ? 'sunny' :
@@ -904,9 +841,9 @@ export default function Stories() {
                       size={16} 
                       color="#FFF" 
                     />
-                    <Text style={styles.playerTagText}>{selectedStory.mood}</Text>
+                    <Text className="text-sm font-semibold text-text-primary">{selectedStory.mood}</Text>
                   </View>
-                  <View style={[styles.playerTag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                  <View className="flex-row items-center px-4 py-2 rounded-3xl gap-1.5 bg-white/20 shadow-sm">
                     <Ionicons 
                       name={
                         selectedStory.category === 'Fantasy' ? 'sparkles' :
@@ -920,73 +857,45 @@ export default function Stories() {
                       size={16} 
                       color="#FFF" 
                     />
-                    <Text style={styles.playerTagText}>{selectedStory.category}</Text>
+                    <Text className="text-sm font-semibold text-text-primary">{selectedStory.category}</Text>
                   </View>
                 </View>
 
                 {isLoading ? (
-                  <ActivityIndicator size="large" color="#FFF" style={styles.loader} />
+                  <ActivityIndicator size="large" color="#FFF" className="my-10" />
                 ) : (
                   <>
-                    <View style={styles.progressContainer}
-                      onLayout={(event) => {
-                        progressBarWidth.current = event.nativeEvent.layout.width;
-                      }}>
-                      <View style={styles.progressBarBackground}>
+                    <View className="w-full h-10 justify-center mb-2.5">
+                      <View className="w-full h-1 bg-black/10 rounded-full overflow-visible">
                         <Animated.View
-                          style={[
-                            styles.progressBar,
-                            {
-                              width: `${(currentTime / duration) * 100}%`,
-                            },
-                          ]}
+                          className="h-full bg-primary rounded-full"
+                          style={{
+                            width: `${(currentTime / duration) * 100}%`,
+                          }}
                         />
                         <Animated.View
                           {...playheadPanResponder.panHandlers}
-                          style={[
-                            styles.playhead,
-                            {
-                              left: `${(currentTime / duration) * 100}%`,
-                              transform: [
-                                { scale: playheadScale },
-                                { translateX: -6 }
-                              ],
-                              opacity: playheadOpacity,
-                            },
-                          ]}
+                          className="absolute w-4 h-4 rounded-full bg-primary justify-center items-center -top-1.5"
+                          style={{
+                            left: `${(currentTime / duration) * 100}%`,
+                            transform: [
+                              { scale: playheadScale },
+                              { translateX: -6 }
+                            ],
+                            opacity: playheadOpacity,
+                          }}
                         >
-                          <View style={styles.playheadInner} />
+                          <View className="w-2 h-2 rounded-full bg-white shadow-lg" />
                         </Animated.View>
-                        {isDraggingPlayhead && (
-                          <View
-                            style={[
-                              styles.timePreview,
-                              {
-                                left: `${(currentTime / duration) * 100}%`,
-                              },
-                            ]}
-                          >
-                            <Text style={styles.timePreviewText}>
-                              {formatTime(currentTime)}
-                            </Text>
-                          </View>
-                        )}
                       </View>
-                      {isBuffering && (
-                        <ActivityIndicator
-                          size="small"
-                          color="#FFF"
-                          style={styles.bufferingIndicator}
-                        />
-                      )}
                     </View>
 
-                    <View style={styles.timeContainer}>
-                      <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-                      <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                    <View className="w-full flex-row justify-between mb-10">
+                      <Text className="text-sm text-text-secondary">{formatTime(currentTime)}</Text>
+                      <Text className="text-sm text-text-secondary">{formatTime(duration)}</Text>
                     </View>
 
-                    <View style={styles.volumeContainer}>
+                    <View className="w-full flex-row items-center px-5 mb-5">
                       <TouchableOpacity onPress={toggleMute}>
                         <Ionicons
                           name={volume === 0 ? "volume-mute" : volume < 0.5 ? "volume-low" : "volume-high"}
@@ -995,7 +904,7 @@ export default function Stories() {
                         />
                       </TouchableOpacity>
                       <Slider
-                        style={styles.volumeSlider}
+                        className="flex-1 ml-2.5 h-10"
                         minimumValue={0}
                         maximumValue={1}
                         value={volume}
@@ -1006,7 +915,7 @@ export default function Stories() {
                       />
                     </View>
 
-                    <View style={styles.additionalControls}>
+                    <View className="w-3/5 flex-row justify-between mb-5">
                       <TouchableOpacity onPress={() => setIsShuffle(!isShuffle)}>
                         <Ionicons
                           name="shuffle"
@@ -1023,15 +932,15 @@ export default function Stories() {
                       </TouchableOpacity>
                     </View>
 
-                    <View style={styles.controls}>
+                    <View className="flex-row items-center justify-center mb-8">
                       <TouchableOpacity 
-                        style={styles.controlButton}
+                        className="p-5"
                         onPress={skipBackward}
                       >
                         <Ionicons name="play-skip-back" size={24} color="#FFF" />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.playButton}
+                        className="w-20 h-20 rounded-full bg-primary justify-center items-center mx-7.5 shadow-lg"
                         onPress={togglePlayPause}
                         disabled={isLoading}
                       >
@@ -1042,7 +951,7 @@ export default function Stories() {
                         />
                       </TouchableOpacity>
                       <TouchableOpacity 
-                        style={styles.controlButton}
+                        className="p-5"
                         onPress={skipForward}
                       >
                         <Ionicons name="play-skip-forward" size={24} color="#FFF" />
@@ -1050,22 +959,22 @@ export default function Stories() {
                     </View>
 
                     <TouchableOpacity
-                      style={styles.doubleTapLeft}
+                      className="absolute left-0 top-[55%] w-[30%] h-[20%] justify-center items-center"
                       onPress={() => handleDoubleTap('backward')}
                     >
-                      <View style={styles.doubleTapOverlay}>
+                      <View className="bg-primary/10 px-3 py-2 rounded-3xl items-center">
                         <Ionicons name="play-back" size={24} color="rgba(255, 255, 255, 0.5)" />
-                        <Text style={styles.doubleTapText}>10s</Text>
+                        <Text className="text-xs text-text-secondary mt-1">10s</Text>
                       </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.doubleTapRight}
+                      className="absolute right-0 top-[55%] w-[30%] h-[20%] justify-center items-center"
                       onPress={() => handleDoubleTap('forward')}
                     >
-                      <View style={styles.doubleTapOverlay}>
+                      <View className="bg-primary/10 px-3 py-2 rounded-3xl items-center">
                         <Ionicons name="play-forward" size={24} color="rgba(255, 255, 255, 0.5)" />
-                        <Text style={styles.doubleTapText}>10s</Text>
+                        <Text className="text-xs text-text-secondary mt-1">10s</Text>
                       </View>
                     </TouchableOpacity>
                   </>
@@ -1078,561 +987,3 @@ export default function Stories() {
     </SafeAreaView>
   );
 }
-
-const getMoodColor = (mood) => {
-  const moodColors = {
-    happy: '#FFB7B7',
-    sad: '#B7D4FF',
-    angry: '#FF8C8C',
-    joy: '#FFD700',
-    surprise: '#FFA07A',
-    calm: '#B7FFD8',
-    mysterious: '#B7D4FF',
-    exciting: '#FFB88C',
-  };
-  return moodColors[mood] || '#FF6B6B';
-};
-
-const getCategoryColor = (category) => {
-  const categoryColors = {
-    Fantasy: '#FFB7B7',
-    Drama: '#B7D4FF',
-    Adventure: '#B7FFD8',
-    Mystery: '#D4B7FF',
-    Romance: '#FFB7E4',
-    'Sci-Fi': '#B7FFE4',
-    Horror: '#FFB7D4',
-    Comedy: '#FFE4B7',
-  };
-  return categoryColors[category] || '#F0F0F0';
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    backgroundColor: '#fff',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1C1C1E',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12
-   },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: 45,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1C1C1E',
-    paddingVertical: 8,
-    fontWeight: '500',
-  },
-  filterButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 12,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterButtonActive: {
-    backgroundColor: '#FF6B6B',
-  },
-  filterPanel: {
-    backgroundColor: '#F8F8F8',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 20,
-    marginTop: 10,
-  },
-  filterTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 12,
-    marginTop: 5,
-  },
-  filterOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginRight: 8,
-    // marginTop: 10,
-    gap: 8,
-  },
-  filterOptionActive: {
-    backgroundColor: '#FF6B6B',
-  },
-  filterOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-    textTransform: 'capitalize',
-    // marginTop: 10,
-  },
-  filterOptionTextActive: {
-    color: '#FFF',
-  },
-  categorySection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 15,
-    paddingHorizontal: 20,
-  },
-  categoriesContainer: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  categoryCard: {
-    width: width * 0.5,
-    height: 60,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginRight: 12
-  },
-  categoryGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  categoryTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#000',
-    textAlign: 'center',
-  },
-  storiesSection: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  storiesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  storyCard: {
-    width: (width - 48) / 2,
-    height: 210,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#FFF',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  storyCardList: {
-    width: '100%',
-    height: 170,
-    marginBottom: 12,
-  },
-  storyGradient: {
-    flex: 1,
-    padding: 16,
-  },
-  cardContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-
-  },
-  storyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: 'black',
-    flex: 1,
-    marginRight: 8,
-    lineHeight: 20,
-  },
-  generatedTag: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    padding: 8,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardFooter: {
-    marginTop: 8,
-  },
-  moodCategoryContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-    flexWrap: 'wrap',
-  },
-  moodBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  durationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  storyDuration: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  playerTags: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 20,
-    flexWrap: 'wrap',
-    
-  },
-  playerTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth:1,
-    borderColor:'black',
-  },
-  playerTagText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'black',
-    
-  },
-  playerModal: {
-    flex: 1,
-  },
-  playerGradient: {
-    flex: 1,
-    paddingTop: 40,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 30,
-    
-  },
-  modalBackButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(249, 0, 0, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  modalOptionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '400',
-    color: 'black',
-  },
-  playerContent: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 60,
-    // height: '50%',
-  },
-  albumArt: {
-    width: 100,
-    height: 100,
-    borderRadius: 100,
-    backgroundColor: 'rgba(212, 0, 0, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  playerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: 'black',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  loader: {
-    marginVertical: 40,
-  },
-  progressContainer: {
-    width: '100%',
-    height: 40,
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  progressBarBackground: {
-    width: '100%',
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 2,
-    overflow: 'visible',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-    borderRadius: 2,
-  },
-  playhead: {
-    position: 'absolute',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    top: -8,
-  },
-  playheadInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#FFF',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  timePreview: {
-    position: 'absolute',
-    top: -35,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: 6,
-    borderRadius: 6,
-    transform: [{ translateX: -20 }],
-  },
-  timePreviewText: {
-    color: '#FFF',
-    fontSize: 12,
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  bufferingIndicator: {
-    position: 'absolute',
-    right: -24,
-    top: -10,
-  },
-  timeContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 40,
-  },
-  timeText: {
-    color: 'black',
-    fontSize: 14,
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  controlButton: {
-    padding: 20,
-  },
-  playButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 30,
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  volumeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  volumeSlider: {
-    flex: 1,
-    marginLeft: 10,
-    height: 40,
-  },
-  additionalControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '60%',
-    marginBottom: 20,
-  },
-  doubleTapLeft: {
-    position: 'absolute',
-    left: 0,
-    top: '55%',
-    width: '30%',
-    height: '20%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  doubleTapRight: {
-    position: 'absolute',
-    right: 0,
-    top: '55%',
-    width: '30%',
-    height: '20%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  doubleTapOverlay: {
-    backgroundColor: 'rgba(255, 0, 0, 0.3)',
-    padding: 10,
-    borderRadius: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'black',
-  },
-  doubleTapText: {
-    color: 'rgba(0, 0, 0, 0.5)',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  storiesListView: {
-    flexDirection: 'column',
-  },
-  emptyStateContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginTop: 12,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 4,
-  },
-});
