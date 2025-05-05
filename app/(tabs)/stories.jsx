@@ -785,7 +785,7 @@ export default function Stories() {
                   </TouchableOpacity>
                   <View className="items-center">
                     <Text className="text-sm text-gray-400">Now Playing</Text>
-                    <Text className="text-base font-semibold text-white">{selectedStory.title}</Text>
+                    {/* <Text className="text-base font-semibold text-white">{selectedStory.title}</Text> */}
                   </View>
                   <TouchableOpacity className="w-10 h-10 rounded-full bg-white/10 justify-center items-center">
                     <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
@@ -816,11 +816,11 @@ export default function Stories() {
                     <Text className="text-sm text-gray-500 text-center">
                       {selectedStory.language} • {selectedStory.ageCategory} • {selectedStory.genre}
                     </Text>
-                    {selectedStory.metadata?.description && (
+                    {/* {selectedStory.metadata?.description && (
                       <Text className="text-sm text-gray-400 text-center mt-2 px-4">
                         {selectedStory.metadata.description}
                       </Text>
-                    )}
+                    )} */}
                   </View>
                 </View>
 
@@ -877,7 +877,7 @@ export default function Stories() {
 
                 {/* Volume Control */}
                 <View className="px-8">
-                  <View className="flex-row items-center">
+                  <View className="flex-row items-center mb-20">
                     <TouchableOpacity onPress={toggleMute} className="mr-4">
                       <Ionicons
                         name={isMuted ? "volume-mute" : "volume-high"}
