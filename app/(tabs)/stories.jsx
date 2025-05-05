@@ -89,12 +89,45 @@ export default function Stories() {
     {
       id: 1,
       title: "The Magic Forest",
+      author: "Sarah Smith",
       mood: "mysterious",
+      category: "Fantasy",
       duration: "8:30",
       thumbnail: null,
-      type: "default"
+      type: "default",
+      description: "A magical journey through an enchanted forest where trees whisper secrets and animals speak.",
+      rating: 4.8,
+      plays: 1234,
+      createdAt: "2024-03-15T10:00:00Z"
     },
-    
+    {
+      id: 2,
+      title: "Ocean's Whisper",
+      author: "Mike Johnson",
+      mood: "calm",
+      category: "Adventure",
+      duration: "12:15",
+      thumbnail: null,
+      type: "default",
+      description: "Dive into the depths of the ocean where ancient creatures guard forgotten treasures.",
+      rating: 4.9,
+      plays: 2156,
+      createdAt: "2024-03-14T15:30:00Z"
+    },
+    {
+      id: 3,
+      title: "Starlight Dreams",
+      author: "Emma Davis",
+      mood: "happy",
+      category: "Sci-Fi",
+      duration: "10:45",
+      thumbnail: null,
+      type: "default",
+      description: "A cosmic adventure through the stars where dreams become reality.",
+      rating: 4.7,
+      plays: 1890,
+      createdAt: "2024-03-13T09:15:00Z"
+    }
   ];
 
   const storyCategories = [
@@ -556,278 +589,212 @@ export default function Stories() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background-secondary">
-      <View className="px-5 pt-5 bg-white border-b border-gray-200">
-        <View className="flex-row justify-between items-center mb-5">
-          <Text className="text-3xl font-extrabold text-text-primary tracking-tight">Story Time 🎯</Text>
-          <View className="flex-row items-center gap-4">
-            <TouchableOpacity className="w-11 h-11 rounded-full bg-secondary justify-center items-center shadow-sm">
-              <Ionicons name="notifications-outline" size={22} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              className="w-11 h-11 rounded-full bg-secondary justify-center items-center shadow-sm"
-              onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-            >
-              <Ionicons 
-                name={viewMode === 'grid' ? 'grid' : 'list'} 
-                size={22} 
-                color="#666" 
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View className="flex-row items-center gap-3 mb-5">
-          <View className="flex-1 flex-row items-center bg-secondary rounded-2xl px-4 h-12 shadow-sm">
-            <Ionicons name="search" size={20} color="#666" className="mr-3" />
-            <TextInput
-              ref={searchInputRef}
-              className="flex-1 text-base text-text-primary font-medium py-3"
-              placeholder="Search stories..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={(text) => {
-                setSearchQuery(text);
-                if (text && selectedMood !== 'All') {
-                  setSelectedMood('All');
-                }
-              }}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity 
-                className="p-2"
-                onPress={() => {
-                  setSearchQuery('');
-                  searchInputRef.current?.blur();
-                }}
-              >
-                <Ionicons name="close-circle" size={20} color="#999" />
-              </TouchableOpacity>
-            )}
-          </View>
-          <TouchableOpacity 
-            className={`w-12 h-12 rounded-2xl justify-center items-center shadow-sm ${showFilters ? 'bg-primary' : 'bg-secondary'}`}
-            onPress={() => {
-              setShowFilters(!showFilters);
-              Animated.spring(filterAnimation, {
-                toValue: showFilters ? 0 : 1,
-                useNativeDriver: true,
-                friction: 8,
-              }).start();
-            }}
-          >
-            <Ionicons name="options" size={22} color={showFilters ? "#FFF" : "#666"} />
-          </TouchableOpacity>
-        </View>
-
-        <Animated.View 
-          className={`bg-white rounded-3xl p-4 mb-5 mt-2.5 shadow-md ${showFilters ? 'opacity-100' : 'opacity-0'}`}
-          style={{
-            transform: [{
-              translateY: filterAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [-20, 0],
-              })
-            }]
-          }}
+    <SafeAreaView className="flex-1 bg-black">
+      <View className="flex-1">
+        {/* Main Content */}
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          className="flex-1"
         >
-          {showFilters && (
-            <>
-              <View className="mb-4">
-                <Text className="text-base font-semibold text-text-primary mb-3">Sort By</Text>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  className="flex-row gap-2"
-                >
-                  {['newest', 'duration'].map((option) => (
-                    <TouchableOpacity
-                      key={option}
-                      className={`flex-row items-center px-4 py-2.5 rounded-2xl gap-2 ${
-                        sortBy === option ? 'bg-primary' : 'bg-secondary'
-                      }`}
-                      onPress={() => setSortBy(option)}
-                    >
-                      <Ionicons 
-                        name={option === 'newest' ? 'time' : 'timer'} 
-                        size={18} 
-                        color={sortBy === option ? "#FFF" : "#666"}
-                      />
-                      <Text className={`text-sm font-medium ${
-                        sortBy === option ? 'text-white' : 'text-text-secondary'
-                      }`}>
-                        {option.charAt(0).toUpperCase() + option.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
+          {/* Header */}
+          <View className="px-4 pt-6 pb-2">
+            <View className="flex-row justify-between items-center mb-6">
               <View>
-                <Text className="text-base font-semibold text-text-primary mb-3">Mood</Text>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  className="flex-row gap-2"
-                >
-                  {moodFilters.map((mood) => (
-                    <TouchableOpacity
-                      key={mood.id}
-                      className={`flex-row items-center px-4 py-2.5 rounded-2xl gap-2 ${
-                        selectedMood === mood.title ? 'bg-primary' : 'bg-secondary'
-                      }`}
-                      onPress={() => setSelectedMood(mood.title)}
-                    >
-                      <Ionicons 
-                        name={mood.icon} 
-                        size={18} 
-                        color={selectedMood === mood.title ? "#FFF" : "#666"}
-                      />
-                      <Text className={`text-sm font-medium ${
-                        selectedMood === mood.title ? 'text-white' : 'text-text-secondary'
-                      }`}>
-                        {mood.title}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <Text className="text-2xl font-bold text-white">Good {getTimeOfDay()}</Text>
+                <Text className="text-sm text-gray-400 mt-1">Let's find your next story</Text>
               </View>
-            </>
-          )}
-        </Animated.View>
-      </View>
+              <View className="flex-row items-center gap-3">
+                <TouchableOpacity className="w-10 h-10 rounded-full bg-white/10 justify-center items-center">
+                  <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity className="w-10 h-10 rounded-full bg-white/10 justify-center items-center">
+                  <Ionicons name="time-outline" size={20} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        className="flex-1 px-4"
-      >
-        <View className="py-4">
-          <Text className="text-2xl font-bold text-text-primary mb-4">Stories</Text>
-          <View className={`flex-row flex-wrap justify-between gap-4 ${
-            viewMode === 'list' ? 'flex-col' : ''
-          }`}>
+            {/* Search Bar */}
+            <View className="flex-row items-center bg-white/10 rounded-full px-4 h-12 mb-6">
+              <Ionicons name="search" size={20} color="#666" className="mr-3" />
+              <TextInput
+                ref={searchInputRef}
+                className="flex-1 text-base text-white font-medium py-3"
+                placeholder="Search stories, authors, or moods..."
+                placeholderTextColor="#666"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity 
+                  className="p-2"
+                  onPress={() => {
+                    setSearchQuery('');
+                    searchInputRef.current?.blur();
+                  }}
+                >
+                  <Ionicons name="close-circle" size={20} color="#666" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Quick Filters */}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              className="flex-row gap-2 mb-6"
+            >
+              {moodFilters.map((mood) => (
+                <TouchableOpacity
+                  key={mood.id}
+                  className={`flex-row items-center px-4 py-2 rounded-full ${
+                    selectedMood === mood.title ? 'bg-white' : 'bg-white/10'
+                  }`}
+                  onPress={() => setSelectedMood(mood.title)}
+                >
+                  <Ionicons 
+                    name={mood.icon} 
+                    size={16} 
+                    color={selectedMood === mood.title ? "#000" : "#FFF"}
+                  />
+                  <Text className={`text-sm font-medium ml-2 ${
+                    selectedMood === mood.title ? 'text-black' : 'text-white'
+                  }`}>
+                    {mood.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Stories List */}
+          <View className="px-4">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-xl font-bold text-white">Stories</Text>
+              <Text className="text-sm text-gray-400">{getFilteredStories().length} stories</Text>
+            </View>
+
             {sortStories(getFilteredStories())?.map((story) => (
               story && (
-                <TouchableWithoutFeedback
+                <TouchableOpacity
                   key={story.id}
-                  onPress={() => handleCardPress(story)}
+                  onPress={() => handleStoryPress(story)}
+                  className="flex-row items-center py-3 border-b border-white/10"
                 >
-                  <Animated.View className={`${
-                    viewMode === 'list' ? 'w-full h-[180px] mb-3' : 'w-[calc(50%-8px)] h-[240px] mb-4'
-                  } rounded-3xl overflow-hidden bg-white shadow-lg`}>
-                    <LinearGradient
-                      colors={moodColors[story.mood] || moodColors.happy}
-                      className="flex-1 p-4"
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                    >
-                      <View className="flex-1 justify-between">
-                        <View className="flex-row justify-between items-start mb-2">
-                          <Text className="text-xl font-bold text-white flex-1 mr-2 leading-6" numberOfLines={2}>
-                            {story.title}
-                          </Text>
-                          {story.type === 'generated' && (
-                            <View className="bg-white/90 px-2 py-1 rounded-2xl shadow-sm">
-                              <Ionicons name="sparkles" size={16} color="#1C1C1E" />
-                            </View>
-                          )}
-                        </View>
-                        <View className="mt-2">
-                          <View className="flex-row gap-2 mb-2 flex-wrap">
-                            <View className="flex-row items-center px-3 py-1.5 rounded-2xl gap-1.5 bg-white/90 shadow-sm">
-                              <Ionicons 
-                                name={
-                                  story.mood === 'happy' ? 'sunny' :
-                                  story.mood === 'sad' ? 'sad' :
-                                  story.mood === 'angry' ? 'flame' :
-                                  story.mood === 'joy' ? 'happy' :
-                                  story.mood === 'surprise' ? 'alert' :
-                                  story.mood === 'calm' ? 'water' :
-                                  story.mood === 'mysterious' ? 'moon' : 'flash'
-                                } 
-                                size={14} 
-                                color="#1C1C1E" 
-                              />
-                              <Text className="text-xs font-semibold text-text-primary">{story.mood}</Text>
-                            </View>
-                            <View className="flex-row items-center px-3 py-1.5 rounded-2xl gap-1.5 bg-white/90 shadow-sm">
-                              <Ionicons 
-                                name={
-                                  story.category === 'Fantasy' ? 'sparkles' :
-                                  story.category === 'Drama' ? 'film' :
-                                  story.category === 'Adventure' ? 'compass' :
-                                  story.category === 'Mystery' ? 'search' :
-                                  story.category === 'Romance' ? 'heart' :
-                                  story.category === 'Sci-Fi' ? 'rocket' :
-                                  story.category === 'Horror' ? 'skull' : 'happy'
-                                } 
-                                size={14} 
-                                color="#1C1C1E" 
-                              />
-                              <Text className="text-xs font-semibold text-text-primary">{story.category}</Text>
-                            </View>
-                          </View>
-                          <View className="flex-row items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-2xl self-start shadow-sm">
-                            <Ionicons name="time" size={14} color="#1C1C1E" />
-                            <Text className="text-xs font-semibold text-text-primary">{story.duration}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    </LinearGradient>
-                  </Animated.View>
-                </TouchableWithoutFeedback>
+                  <View className="w-12 h-12 rounded-md bg-white/10 justify-center items-center mr-3">
+                    <Ionicons 
+                      name={
+                        story.mood === 'happy' ? 'sunny' :
+                        story.mood === 'sad' ? 'sad' :
+                        story.mood === 'angry' ? 'flame' :
+                        story.mood === 'joy' ? 'happy' :
+                        story.mood === 'surprise' ? 'alert' :
+                        story.mood === 'calm' ? 'water' :
+                        story.mood === 'mysterious' ? 'moon' : 'flash'
+                      }
+                      size={24} 
+                      color="#FFF" 
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold text-white mb-1" numberOfLines={1}>
+                      {story.title}
+                    </Text>
+                    <Text className="text-sm text-gray-400" numberOfLines={1}>
+                      {story.narrator || story.author} • {story.language} • {story.ageCategory}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1" numberOfLines={1}>
+                      {story.genre} • {story.duration}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center gap-3">
+                    <View className="flex-row items-center">
+                      <Ionicons name="star" size={14} color="#1DB954" />
+                      <Text className="text-sm text-gray-400 ml-1">{story.rating || '0.0'}</Text>
+                    </View>
+                    <TouchableOpacity className="w-8 h-8 rounded-full bg-white/10 justify-center items-center">
+                      <Ionicons name="play" size={16} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
               )
             ))}
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
 
-      <Modal
-        visible={showPlayer}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleClose}
-      >
+        {/* Mini Player */}
         {selectedStory && (
-          <View className="flex-1">
-            <LinearGradient
-              colors={moodColors[selectedStory.mood] || moodColors.happy}
-              className="flex-1 pt-10"
-            >
-              <View className="flex-row items-center justify-between px-5 mb-8">
-                <TouchableOpacity
-                  className="w-11 h-11 rounded-full bg-white/20 justify-center items-center shadow-sm"
-                  onPress={handleClose}
-                >
-                  <Ionicons name="chevron-down" size={24} color="#FFF" />
-                </TouchableOpacity>
-                <Text className="text-xl font-semibold text-text-primary">Now Playing</Text>
-                <TouchableOpacity className="w-11 h-11 rounded-full bg-white/20 justify-center items-center shadow-sm">
-                  <Ionicons name="ellipsis-horizontal" size={12} color="#FFF" />
-                </TouchableOpacity>
-              </View>
+          <TouchableOpacity 
+            className="absolute bottom-0 left-0 right-0 bg-[#282828] px-4 py-3 flex-row items-center"
+            onPress={() => setShowPlayer(true)}
+          >
+            <View className="w-10 h-10 rounded-md bg-white/10 justify-center items-center mr-3">
+              <Ionicons 
+                name={
+                  selectedStory.mood === 'happy' ? 'sunny' :
+                  selectedStory.mood === 'sad' ? 'sad' :
+                  selectedStory.mood === 'angry' ? 'flame' :
+                  selectedStory.mood === 'joy' ? 'happy' :
+                  selectedStory.mood === 'surprise' ? 'alert' :
+                  selectedStory.mood === 'calm' ? 'water' :
+                  selectedStory.mood === 'mysterious' ? 'moon' : 'flash'
+                }
+                size={20} 
+                color="#FFF" 
+              />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-white" numberOfLines={1}>
+                {selectedStory.title}
+              </Text>
+              <Text className="text-xs text-gray-400" numberOfLines={1}>
+                {selectedStory.narrator || selectedStory.author} • {selectedStory.language}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-4">
+              <TouchableOpacity onPress={togglePlayPause}>
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={24}
+                  color="#FFF"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowPlayer(true)}>
+                <Ionicons name="play-skip-forward" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        )}
 
-              <View className="flex-1 items-center px-10">
-                <View className="w-[280px] h-[280px] rounded-3xl bg-white/20 justify-center items-center mb-8 shadow-lg">
-                  <Ionicons 
-                    name={
-                      selectedStory.mood === 'happy' ? 'sunny' :
-                      selectedStory.mood === 'sad' ? 'sad' :
-                      selectedStory.mood === 'angry' ? 'flame' :
-                      selectedStory.mood === 'joy' ? 'happy' :
-                      selectedStory.mood === 'surprise' ? 'alert' :
-                      selectedStory.mood === 'calm' ? 'water' :
-                      selectedStory.mood === 'mysterious' ? 'moon' : 'flash'
-                    }
-                    size={64} 
-                    color="#FFF" 
-                  />
+        {/* Full Screen Player */}
+        <Modal
+          visible={showPlayer}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={handleClose}
+        >
+          {selectedStory && (
+            <View className="flex-1 bg-black">
+              <View className="flex-1 pt-12">
+                {/* Header */}
+                <View className="flex-row items-center justify-between px-4 mb-8">
+                  <TouchableOpacity
+                    className="w-10 h-10 rounded-full bg-white/10 justify-center items-center"
+                    onPress={handleClose}
+                  >
+                    <Ionicons name="chevron-down" size={24} color="#FFF" />
+                  </TouchableOpacity>
+                  <View className="items-center">
+                    <Text className="text-sm text-gray-400">Now Playing</Text>
+                    <Text className="text-base font-semibold text-white">{selectedStory.title}</Text>
+                  </View>
+                  <TouchableOpacity className="w-10 h-10 rounded-full bg-white/10 justify-center items-center">
+                    <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
+                  </TouchableOpacity>
                 </View>
-                
-                <Text className="text-3xl font-bold text-text-primary text-center mb-4">{selectedStory.title}</Text>
-                
-                <View className="flex-row justify-center gap-3 mb-8 flex-wrap">
-                  <View className="flex-row items-center px-4 py-2 rounded-3xl gap-1.5 bg-white/20 shadow-sm">
+
+                {/* Album Art */}
+                <View className="items-center px-8 mb-8">
+                  <View className="w-[300px] h-[300px] rounded-lg bg-white/10 justify-center items-center mb-6">
                     <Ionicons 
                       name={
                         selectedStory.mood === 'happy' ? 'sunny' :
@@ -838,152 +805,103 @@ export default function Stories() {
                         selectedStory.mood === 'calm' ? 'water' :
                         selectedStory.mood === 'mysterious' ? 'moon' : 'flash'
                       }
-                      size={16} 
+                      size={80} 
                       color="#FFF" 
                     />
-                    <Text className="text-sm font-semibold text-text-primary">{selectedStory.mood}</Text>
                   </View>
-                  <View className="flex-row items-center px-4 py-2 rounded-3xl gap-1.5 bg-white/20 shadow-sm">
-                    <Ionicons 
-                      name={
-                        selectedStory.category === 'Fantasy' ? 'sparkles' :
-                        selectedStory.category === 'Drama' ? 'film' :
-                        selectedStory.category === 'Adventure' ? 'compass' :
-                        selectedStory.category === 'Mystery' ? 'search' :
-                        selectedStory.category === 'Romance' ? 'heart' :
-                        selectedStory.category === 'Sci-Fi' ? 'rocket' :
-                        selectedStory.category === 'Horror' ? 'skull' : 'happy'
-                      }
-                      size={16} 
-                      color="#FFF" 
-                    />
-                    <Text className="text-sm font-semibold text-text-primary">{selectedStory.category}</Text>
+                  
+                  <View className="items-center">
+                    <Text className="text-2xl font-bold text-white text-center mb-2">{selectedStory.title}</Text>
+                    <Text className="text-base text-gray-400 text-center mb-1">{selectedStory.narrator || selectedStory.author}</Text>
+                    <Text className="text-sm text-gray-500 text-center">
+                      {selectedStory.language} • {selectedStory.ageCategory} • {selectedStory.genre}
+                    </Text>
+                    {selectedStory.metadata?.description && (
+                      <Text className="text-sm text-gray-400 text-center mt-2 px-4">
+                        {selectedStory.metadata.description}
+                      </Text>
+                    )}
                   </View>
                 </View>
 
-                {isLoading ? (
-                  <ActivityIndicator size="large" color="#FFF" className="my-10" />
-                ) : (
-                  <>
-                    <View className="w-full h-10 justify-center mb-2.5">
-                      <View className="w-full h-1 bg-black/10 rounded-full overflow-visible">
-                        <Animated.View
-                          className="h-full bg-primary rounded-full"
-                          style={{
-                            width: `${(currentTime / duration) * 100}%`,
-                          }}
-                        />
-                        <Animated.View
-                          {...playheadPanResponder.panHandlers}
-                          className="absolute w-4 h-4 rounded-full bg-primary justify-center items-center -top-1.5"
-                          style={{
-                            left: `${(currentTime / duration) * 100}%`,
-                            transform: [
-                              { scale: playheadScale },
-                              { translateX: -6 }
-                            ],
-                            opacity: playheadOpacity,
-                          }}
-                        >
-                          <View className="w-2 h-2 rounded-full bg-white shadow-lg" />
-                        </Animated.View>
-                      </View>
-                    </View>
+                {/* Progress Bar */}
+                <View className="px-4 mb-4">
+                  <View className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
+                    <Animated.View
+                      className="h-full bg-[#1DB954] rounded-full"
+                      style={{
+                        width: `${(currentTime / duration) * 100}%`,
+                      }}
+                    />
+                  </View>
+                  <View className="flex-row justify-between mt-2">
+                    <Text className="text-xs text-gray-400">{formatTime(currentTime)}</Text>
+                    <Text className="text-xs text-gray-400">{formatTime(duration)}</Text>
+                  </View>
+                </View>
 
-                    <View className="w-full flex-row justify-between mb-10">
-                      <Text className="text-sm text-text-secondary">{formatTime(currentTime)}</Text>
-                      <Text className="text-sm text-text-secondary">{formatTime(duration)}</Text>
-                    </View>
+                {/* Controls */}
+                <View className="flex-row items-center justify-between px-8 mb-8">
+                  <TouchableOpacity onPress={() => setIsShuffle(!isShuffle)}>
+                    <Ionicons
+                      name="shuffle"
+                      size={24}
+                      color={isShuffle ? "#1DB954" : "#FFF"}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={skipBackward}>
+                    <Ionicons name="play-skip-back" size={24} color="#FFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    className="w-16 h-16 rounded-full bg-white justify-center items-center"
+                    onPress={togglePlayPause}
+                    disabled={isLoading}
+                  >
+                    <Ionicons
+                      name={isPlaying ? "pause" : "play"}
+                      size={32}
+                      color="#000"
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={skipForward}>
+                    <Ionicons name="play-skip-forward" size={24} color="#FFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={toggleRepeat}>
+                    <Ionicons
+                      name="repeat"
+                      size={24}
+                      color={isRepeat ? "#1DB954" : "#FFF"}
+                    />
+                  </TouchableOpacity>
+                </View>
 
-                    <View className="w-full flex-row items-center px-5 mb-5">
-                      <TouchableOpacity onPress={toggleMute}>
-                        <Ionicons
-                          name={volume === 0 ? "volume-mute" : volume < 0.5 ? "volume-low" : "volume-high"}
-                          size={24}
-                          color="#FFF"
-                        />
-                      </TouchableOpacity>
-                      <Slider
-                        className="flex-1 ml-2.5 h-10"
-                        minimumValue={0}
-                        maximumValue={1}
-                        value={volume}
-                        onValueChange={handleVolumeChange}
-                        minimumTrackTintColor="#FFF"
-                        maximumTrackTintColor="rgba(255, 255, 255, 0.3)"
-                        thumbTintColor="#FFF"
+                {/* Volume Control */}
+                <View className="px-8">
+                  <View className="flex-row items-center">
+                    <TouchableOpacity onPress={toggleMute} className="mr-4">
+                      <Ionicons
+                        name={isMuted ? "volume-mute" : "volume-high"}
+                        size={24}
+                        color="#FFF"
                       />
-                    </View>
-
-                    <View className="w-3/5 flex-row justify-between mb-5">
-                      <TouchableOpacity onPress={() => setIsShuffle(!isShuffle)}>
-                        <Ionicons
-                          name="shuffle"
-                          size={24}
-                          color={isShuffle ? "#FFF" : "rgba(255, 255, 255, 0.5)"}
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={toggleRepeat}>
-                        <Ionicons
-                          name="repeat"
-                          size={24}
-                          color={isRepeat ? "#FFF" : "rgba(255, 255, 255, 0.5)"}
-                        />
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="flex-row items-center justify-center mb-8">
-                      <TouchableOpacity 
-                        className="p-5"
-                        onPress={skipBackward}
-                      >
-                        <Ionicons name="play-skip-back" size={24} color="#FFF" />
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        className="w-20 h-20 rounded-full bg-primary justify-center items-center mx-7.5 shadow-lg"
-                        onPress={togglePlayPause}
-                        disabled={isLoading}
-                      >
-                        <Ionicons
-                          name={isPlaying ? "pause" : "play"}
-                          size={32}
-                          color="#FFF"
-                        />
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        className="p-5"
-                        onPress={skipForward}
-                      >
-                        <Ionicons name="play-skip-forward" size={24} color="#FFF" />
-                      </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity
-                      className="absolute left-0 top-[55%] w-[30%] h-[20%] justify-center items-center"
-                      onPress={() => handleDoubleTap('backward')}
-                    >
-                      <View className="bg-primary/10 px-3 py-2 rounded-3xl items-center">
-                        <Ionicons name="play-back" size={24} color="rgba(255, 255, 255, 0.5)" />
-                        <Text className="text-xs text-text-secondary mt-1">10s</Text>
-                      </View>
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                      className="absolute right-0 top-[55%] w-[30%] h-[20%] justify-center items-center"
-                      onPress={() => handleDoubleTap('forward')}
-                    >
-                      <View className="bg-primary/10 px-3 py-2 rounded-3xl items-center">
-                        <Ionicons name="play-forward" size={24} color="rgba(255, 255, 255, 0.5)" />
-                        <Text className="text-xs text-text-secondary mt-1">10s</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </>
-                )}
+                    <Slider
+                      style={{ flex: 1 }}
+                      minimumValue={0}
+                      maximumValue={1}
+                      value={volume}
+                      onValueChange={handleVolumeChange}
+                      minimumTrackTintColor="#1DB954"
+                      maximumTrackTintColor="#666"
+                      thumbTintColor="#FFF"
+                    />
+                  </View>
+                </View>
               </View>
-            </LinearGradient>
-          </View>
-        )}
-      </Modal>
+            </View>
+          )}
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 }

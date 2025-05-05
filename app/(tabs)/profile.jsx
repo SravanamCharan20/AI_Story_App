@@ -1,17 +1,65 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Animated, TextInput, Switch, Platform } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Button } from 'react-native';
-
+import { Picker } from '@react-native-picker/picker';
 
 const { width } = Dimensions.get('window');
 
 const MOODS = ['happy', 'sad', 'angry', 'joy', 'surprise', 'calm', 'mysterious', 'exciting'];
 const CATEGORIES = ['Fantasy', 'Drama', 'Adventure', 'Mystery', 'Romance', 'Sci-Fi', 'Horror', 'Comedy'];
+const LANGUAGES = ['Telugu', 'English', 'Hindi', 'Tamil', 'Kannada', 'Malayalam'];
+const AGE_CATEGORIES = ['Kids', 'Teens', 'Adults', 'All Ages'];
+
+// Custom Picker Component to handle platform differences
+const CustomPicker = ({ selectedValue, onValueChange, items, placeholder }) => {
+  if (Platform.OS === 'ios' || Platform.OS === 'android') {
+    return (
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={selectedValue}
+          onValueChange={onValueChange}
+          style={styles.picker}
+        >
+          {placeholder && <Picker.Item label={placeholder} value="" color="#666" />}
+          {items.map((item) => (
+            <Picker.Item
+              key={item}
+              label={item}
+              value={item}
+              color="black"
+            />
+          ))}
+        </Picker>
+      </View>
+    );
+  }
+
+  return (
+    <View className="bg-[#1F1F1F] rounded-lg overflow-hidden">
+      <Picker
+        selectedValue={selectedValue}
+        onValueChange={onValueChange}
+        style={{ color: 'white' }}
+        dropdownIconColor="white"
+        mode="dropdown"
+      >
+        {placeholder && <Picker.Item label={placeholder} value="" color="#666" />}
+        {items.map((item) => (
+          <Picker.Item 
+            key={item} 
+            label={item} 
+            value={item} 
+            color="white"
+          />
+        ))}
+      </Picker>
+    </View>
+  );
+};
 
 export default function Profile() {
   const router = useRouter();
@@ -19,6 +67,18 @@ export default function Profile() {
   const [uploadedPdfs, setUploadedPdfs] = useState([]);
   const [audioFile, setAudioFile] = useState(null);
   const [storyFile, setStoryFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    narrator: '',
+    language: 'Telugu',
+    ageCategory: 'All Ages',
+    genre: '',
+    mood: '',
+    tags: '',
+    hasPermission: false
+  });
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -34,6 +94,8 @@ export default function Profile() {
 
   const loadUploadedPDFs = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const savedPDFs = await AsyncStorage.getItem('uploadedPDFs');
       if (savedPDFs) {
         const parsedPDFs = JSON.parse(savedPDFs);
@@ -41,11 +103,15 @@ export default function Profile() {
       }
     } catch (error) {
       console.log('Error loading PDFs:', error);
+      setError('Failed to load previous stories');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleAudioUpload = async () => {
     try {
+      setError(null);
       const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
         copyToCacheDirectory: true,
@@ -60,19 +126,13 @@ export default function Profile() {
       }
     } catch (error) {
       console.log('Error picking audio:', error);
+      setError('Failed to upload audio file');
     }
   };
-  const clearStorage = async () => {
-    try {
-      await AsyncStorage.clear();
-      console.log('AsyncStorage cleared!');
-      alert('Storage cleared');
-    } catch (e) {
-      console.log('Error clearing AsyncStorage:', e);
-    }
-  };
+
   const handleStoryUpload = async () => {
     try {
+      setError(null);
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         copyToCacheDirectory: true,
@@ -88,270 +148,352 @@ export default function Profile() {
       }
     } catch (error) {
       console.log('Error picking story:', error);
+      setError('Failed to upload story file');
     }
   };
 
   const handleViewStory = (story) => {
-    router.push({
-      pathname: '/(tabs)/stories',
-      params: { storyId: story.id }
-    });
+    try {
+      router.push({
+        pathname: '/(tabs)/stories',
+        params: { storyId: story.id }
+      });
+    } catch (error) {
+      console.log('Error navigating to story:', error);
+      setError('Failed to open story');
+    }
   };
 
   const handleGenerateStory = async () => {
-    if (!audioFile || !storyFile) {
-      alert('Please upload both audio and story files');
+    if (!audioFile || !storyFile || !formData.title || !formData.hasPermission) {
+      setError('Please fill in all required fields and upload both files');
       return;
     }
 
-    // Simulate ML team response
-    const mlResponse = {
-      mood: MOODS[Math.floor(Math.random() * MOODS.length)],
-      category: CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)],
-      duration: `${Math.floor(Math.random() * 5) + 3}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
-    };
-
-    // Create a new story with ML team's output
-    const newStory = {
-      id: Date.now(),
-      title: storyFile.name.replace(/\.[^/.]+$/, ''), // Remove file extension
-      mood: mlResponse.mood,
-      category: mlResponse.category,
-      duration: mlResponse.duration,
-      type: 'generated',
-      audioUrl: audioFile.uri,
-      storyUrl: storyFile.uri,
-      thumbnail: null,
-      size: storyFile.size,
-      createdAt: new Date().toISOString(),
-    };
-
     try {
-      // Get existing stories
+      setIsLoading(true);
+      setError(null);
+
+      const newStory = {
+        id: Date.now(),
+        title: formData.title,
+        narrator: formData.narrator || 'Unknown Narrator',
+        language: formData.language,
+        ageCategory: formData.ageCategory,
+        genre: formData.genre || 'Uncategorized',
+        mood: formData.mood || 'Neutral',
+        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
+        duration: `${Math.floor(Math.random() * 5) + 3}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
+        type: 'generated',
+        audioUrl: audioFile.uri,
+        storyUrl: storyFile.uri,
+        thumbnail: null,
+        size: storyFile.size,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          author: formData.narrator || 'Unknown Narrator',
+          language: formData.language,
+          ageCategory: formData.ageCategory,
+          genre: formData.genre || 'Uncategorized',
+          mood: formData.mood || 'Neutral',
+          tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
+          description: `${formData.title} - A ${formData.genre || 'story'} in ${formData.language} for ${formData.ageCategory}`,
+          rating: 0,
+          plays: 0
+        }
+      };
+
       const existingStories = await AsyncStorage.getItem('uploadedPDFs');
       const stories = existingStories ? JSON.parse(existingStories) : [];
-      
-      // Add new story
       const updatedStories = [...stories, newStory];
-      
-      // Save to storage
       await AsyncStorage.setItem('uploadedPDFs', JSON.stringify(updatedStories));
       
-      // Update local state
       setUploadedPdfs(updatedStories);
-      
-      // Clear the uploaded files
       setAudioFile(null);
       setStoryFile(null);
+      setFormData({
+        title: '',
+        narrator: '',
+        language: 'Telugu',
+        ageCategory: 'All Ages',
+        genre: '',
+        mood: '',
+        tags: '',
+        hasPermission: false
+      });
       
-      // Navigate to stories tab
-      router.push('/(tabs)/stories');
+      router.push({
+        pathname: '/(tabs)/stories',
+        params: { 
+          storyId: newStory.id,
+          title: newStory.title,
+          narrator: newStory.narrator,
+          language: newStory.language,
+          ageCategory: newStory.ageCategory,
+          genre: newStory.genre,
+          mood: newStory.mood,
+          tags: JSON.stringify(newStory.tags),
+          duration: newStory.duration,
+          audioUrl: newStory.audioUrl,
+          storyUrl: newStory.storyUrl
+        }
+      });
     } catch (error) {
       console.log('Error saving generated story:', error);
-      alert('Error saving the generated story. Please try again.');
+      setError('Error saving the generated story. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearStorage = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await AsyncStorage.clear();
+      setUploadedPdfs([]);
+      alert('Storage cleared successfully');
+    } catch (e) {
+      console.log('Error clearing AsyncStorage:', e);
+      setError('Failed to clear storage');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Upload Files</Text>
+    <SafeAreaView className="flex-1 bg-black">
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        {/* Header */}
+        <View className="px-4 pt-6 pb-2">
+          <View className="flex-row justify-between items-center mb-6">
+            <View>
+              <Text className="text-2xl font-bold text-white">Create Story</Text>
+              <Text className="text-sm text-gray-400 mt-1">Upload your audio and story files</Text>
+            </View>
+          </View>
+        </View>
 
-        <View style={styles.uploadSection}>
-          <TouchableOpacity style={styles.uploadButton} onPress={handleAudioUpload}>
-            <Ionicons name="mic" size={24} color="#FF6B6B" />
-            <Text style={styles.uploadButtonText}>
-              {audioFile ? `Audio: ${audioFile.name}` : 'Upload Audio'}
+        {error && (
+          <View className="px-4 mb-4">
+            <Text className="text-red-500 text-sm bg-red-500/10 p-3 rounded-lg">
+              {error}
             </Text>
-          </TouchableOpacity>
+          </View>
+        )}
 
-          <TouchableOpacity style={styles.uploadButton} onPress={handleStoryUpload}>
-            <Ionicons name="document-text" size={24} color="#FF6B6B" />
-            <Text style={styles.uploadButtonText}>
-              {storyFile ? `Story: ${storyFile.name}` : 'Upload Story'}
-            </Text>
-          </TouchableOpacity>
+        {/* Form Section */}
+        <View className="px-4 mb-6">
+          <View className="bg-[#282828] rounded-xl p-4 mb-4">
+            <Text className="text-white text-lg font-semibold mb-4">Story Details</Text>
+            
+            <View className="mb-4">
+              <Text className="text-gray-400 text-sm mb-2">Title *</Text>
+              <TextInput
+                className="bg-[#1F1F1F] text-white px-4 py-3 rounded-lg"
+                placeholder="Enter story title"
+                placeholderTextColor="#666"
+                value={formData.title}
+                onChangeText={(text) => setFormData({...formData, title: text})}
+              />
+            </View>
 
-          <TouchableOpacity 
-            style={[styles.uploadButton, styles.generateButton]} 
+            <View className="mb-4">
+              <Text className="text-gray-400 text-sm mb-2">Narrator</Text>
+              <TextInput
+                className="bg-[#1F1F1F] text-white px-4 py-3 rounded-lg"
+                placeholder="Enter narrator's name"
+                placeholderTextColor="#666"
+                value={formData.narrator}
+                onChangeText={(text) => setFormData({...formData, narrator: text})}
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-400 text-sm mb-2">Language</Text>
+              <CustomPicker
+                selectedValue={formData.language}
+                onValueChange={(value) => setFormData({...formData, language: value})}
+                items={LANGUAGES}
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-400 text-sm mb-2">Age Category</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {AGE_CATEGORIES.map((age) => (
+                  <TouchableOpacity
+                    key={age}
+                    className={`px-4 py-2 rounded-full ${
+                      formData.ageCategory === age ? 'bg-[#1DB954]' : 'bg-[#1F1F1F]'
+                    }`}
+                    onPress={() => setFormData({...formData, ageCategory: age})}
+                  >
+                    <Text className={`text-sm font-medium ${
+                      formData.ageCategory === age ? 'text-black' : 'text-white'
+                    }`}>
+                      {age}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-400 text-sm mb-2">Genre</Text>
+              <CustomPicker
+                selectedValue={formData.genre}
+                onValueChange={(value) => setFormData({...formData, genre: value})}
+                items={CATEGORIES}
+                placeholder="Select Genre"
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-400 text-sm mb-2">Mood</Text>
+              <CustomPicker
+                selectedValue={formData.mood}
+                onValueChange={(value) => setFormData({...formData, mood: value})}
+                items={MOODS}
+                placeholder="Select Mood"
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-gray-400 text-sm mb-2">Tags (comma-separated)</Text>
+              <TextInput
+                className="bg-[#1F1F1F] text-white px-4 py-3 rounded-lg"
+                placeholder="Enter tags (e.g., adventure, fantasy, magic)"
+                placeholderTextColor="#666"
+                value={formData.tags}
+                onChangeText={(text) => setFormData({...formData, tags: text})}
+              />
+            </View>
+
+            <View className="flex-row items-center mb-4">
+              <Switch
+                value={formData.hasPermission}
+                onValueChange={(value) => setFormData({...formData, hasPermission: value})}
+                trackColor={{ false: '#1F1F1F', true: '#1DB954' }}
+                thumbColor={formData.hasPermission ? '#fff' : '#f4f3f4'}
+              />
+              <Text className="text-white text-sm ml-2 flex-1">
+                I confirm I have permission to use this audio and story
+              </Text>
+            </View>
+          </View>
+
+          {/* Upload Section */}
+          <View className="bg-[#282828] rounded-xl p-4 mb-4">
+            <Text className="text-white text-lg font-semibold mb-4">Upload Files</Text>
+            
+            <TouchableOpacity 
+              className="flex-row items-center bg-[#1F1F1F] p-4 rounded-lg mb-4"
+              onPress={handleAudioUpload}
+              disabled={isLoading}
+            >
+              <Ionicons name="mic" size={24} color="#1DB954" />
+              <View className="ml-3 flex-1">
+                <Text className="text-white font-medium">
+                  {audioFile ? audioFile.name : 'Upload Audio'}
+                </Text>
+                {audioFile && (
+                  <Text className="text-gray-400 text-sm">{audioFile.size}</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              className="flex-row items-center bg-[#1F1F1F] p-4 rounded-lg"
+              onPress={handleStoryUpload}
+              disabled={isLoading}
+            >
+              <Ionicons name="document-text" size={24} color="#1DB954" />
+              <View className="ml-3 flex-1">
+                <Text className="text-white font-medium">
+                  {storyFile ? storyFile.name : 'Upload Story'}
+                </Text>
+                {storyFile && (
+                  <Text className="text-gray-400 text-sm">{storyFile.size}</Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            className={`w-full py-4 rounded-xl items-center ${
+              audioFile && storyFile && formData.title && formData.hasPermission && !isLoading
+                ? 'bg-[#1DB954]'
+                : 'bg-[#1F1F1F]'
+            }`}
             onPress={handleGenerateStory}
+            disabled={!(audioFile && storyFile && formData.title && formData.hasPermission) || isLoading}
           >
-            <Ionicons name="create" size={24} color="#FFF" />
-            <Text style={[styles.uploadButtonText, styles.generateButtonText]}>
-              Generate Story
+            <Text className="text-white font-semibold text-lg">
+              {isLoading ? 'Processing...' : 'Continue'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Previous Stories</Text>
-        <View style={styles.pdfSection}>
-          {uploadedPdfs.map((pdf) => (
-            <Animated.View key={pdf.id} style={[styles.pdfCard, { opacity: fadeAnim }]}>
-              <View style={styles.pdfIconContainer}>
-                <Ionicons name="document-text" size={24} color="#FF6B6B" />
-              </View>
-              <View style={styles.pdfInfo}>
-                <Text style={styles.pdfName} numberOfLines={1}>{pdf.title || pdf.name}</Text>
-                <Text style={styles.pdfSize}>{pdf.size}</Text>
-                <View style={styles.moodCategoryContainer}>
-                  <View style={[styles.moodBadge, { backgroundColor: getMoodColor(pdf.mood) }]}>
-                    <Text style={styles.badgeText}>{pdf.mood}</Text>
-                  </View>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.badgeText}>{pdf.category}</Text>
-                  </View>
-                </View>
-                <Text style={styles.pdfDuration}>Duration: {pdf.duration}</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.viewButton}
+        {/* Previous Stories Section */}
+        <View className="px-4 mb-6">
+          <Text className="text-white text-lg font-semibold mb-4">Previous Stories</Text>
+          {isLoading ? (
+            <View className="items-center py-4">
+              <Text className="text-gray-400">Loading stories...</Text>
+            </View>
+          ) : uploadedPdfs.length === 0 ? (
+            <View className="items-center py-4">
+              <Text className="text-gray-400">No stories uploaded yet</Text>
+            </View>
+          ) : (
+            uploadedPdfs.map((pdf) => (
+              <TouchableOpacity
+                key={pdf.id}
+                className="flex-row items-center bg-[#282828] p-4 rounded-xl mb-3"
                 onPress={() => handleViewStory(pdf)}
               >
-                <Text style={styles.viewButtonText}>View</Text>
+                <View className="w-12 h-12 rounded-lg bg-[#1F1F1F] justify-center items-center mr-3">
+                  <Ionicons name="document-text" size={24} color="#1DB954" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-white font-medium mb-1" numberOfLines={1}>
+                    {pdf.title}
+                  </Text>
+                  <Text className="text-gray-400 text-sm" numberOfLines={1}>
+                    {pdf.narrator} • {pdf.duration}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
               </TouchableOpacity>
-            </Animated.View>
-          ))}
+            ))
+          )}
         </View>
 
-        {/* <TouchableOpacity style={styles.signOutButton}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity> */}
+        <TouchableOpacity
+          className="mx-4 mb-6 py-4 rounded-xl bg-[#282828] items-center"
+          onPress={clearStorage}
+          disabled={isLoading}
+        >
+          <Text className="text-red-500 font-semibold">
+            {isLoading ? 'Clearing...' : 'Clear Storage'}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
-      <Button title="Clear Storage" onPress={clearStorage} />
-
     </SafeAreaView>
   );
 }
 
-const getMoodColor = (mood) => {
-  const moodColors = {
-    happy: '#FFB7B7',
-    sad: '#B7D4FF',
-    angry: '#FF8C8C',
-    joy: '#FFD700',
-    surprise: '#FFA07A',
-    calm: '#B7FFD8',
-    mysterious: '#B7D4FF',
-    exciting: '#FFB88C',
-  };
-  return moodColors[mood] || '#FF6B6B';
-};
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF' },
-  scrollContent: { paddingBottom: 100 },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: 'black',
-    marginLeft: 20,
-    marginBottom: 15,
-    marginTop: 20,
+  pickerContainer: {
+    backgroundColor: '#1F1F1F',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
-  uploadSection: { paddingHorizontal: 20, marginBottom: 25 },
-  pdfSection: { paddingHorizontal: 20, marginBottom: 25 },
-  uploadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8F8F8',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 15,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: 'black',
-  },
-  generateButton: {
-    backgroundColor: '#FF6B6B',
-    borderStyle: 'solid',
-    borderColor: 'black',
-    marginTop: 10,
-  },
-  generateButtonText: {
-    color: '#FFF',
-  },
-  uploadButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FF6B6B',
-    marginLeft: 10,
-  },
-  pdfCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8F8F8',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 10,
-  },
-  pdfIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  pdfInfo: { flex: 1 },
-  pdfName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  pdfSize: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  pdfDuration: {
-    fontSize: 12,
-    color: '#444',
-    marginTop: 2,
-  },
-  viewButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  viewButtonText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  signOutButton: {
-    margin: 20,
-    backgroundColor: '#FF3B30',
-    padding: 15,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  signOutText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  moodCategoryContainer: {
-    flexDirection: 'row',
-    marginTop: 4,
-    gap: 8,
-  },
-  moodBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  categoryBadge: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1C1C1E',
+  picker: {
+    color: 'white',
+    height: 55,
   },
 });
