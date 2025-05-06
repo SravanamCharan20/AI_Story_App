@@ -1,10 +1,12 @@
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Audio } from 'expo-av';
 import { fetch } from 'react-native-fetch-api';
+import Slider from '@react-native-community/slider';
+import { Animated } from 'react-native';
 
 export default function StoryDetail() {
   const { id } = useLocalSearchParams();
@@ -16,6 +18,45 @@ export default function StoryDetail() {
   const [story, setStory] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1.0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [isRepeat, setIsRepeat] = useState(false);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const soundRef = useRef(null);
+  const animatedValue = useRef(new Animated.Value(0)).current;
+  const previousVolume = useRef(1.0);
+  const seekTimeout = useRef(null);
+  const lastSeekTime = useRef(0);
+  const SEEK_DEBOUNCE = Platform.select({
+    ios: 100,
+    android: 150,
+    default: 100,
+  });
+
+  useEffect(() => {
+    const setupAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+          interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+          interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+          playThroughEarpieceAndroid: false,
+          allowsRecordingIOS: false,
+        });
+      } catch (error) {
+        console.error('Error setting up audio:', error);
+      }
+    };
+
+    setupAudio();
+    return () => {
+      cleanupAudio();
+    };
+  }, []);
 
   useEffect(() => {
     const fetchStory = async () => {
@@ -38,60 +79,313 @@ export default function StoryDetail() {
     fetchStory();
   }, [id]);
 
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [sound]);
-
   const handlePlayAudio = async () => {
     try {
-      if (!story?.audioUrl) {
-        throw new Error('No audio URL available');
-      }
-
-      if (sound) {
-        await sound.unloadAsync();
-      }
-
+      if (!story?.audioUrl) throw new Error('No audio URL available');
+      await cleanupAudio();
+  
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri: story.audioUrl },
-        { shouldPlay: true }
-      );
-      setSound(newSound);
-      setIsPlaying(true);
-
-      newSound.setOnPlaybackStatusUpdate(async (status) => {
-        if (status.didJustFinish) {
-          setIsPlaying(false);
-          await newSound.unloadAsync();
+        {
+          shouldPlay: false,
+          volume: isMuted ? 0 : volume,
+          rate: 1.0,
+          shouldCorrectPitch: true,
+          isLooping: isRepeat,
         }
-      });
+      );
+  
+      soundRef.current = newSound;
+      setSound(newSound);
+
+      const status = await newSound.getStatusAsync();
+      if (!status.isLoaded) {
+        await new Promise((resolve) => {
+          const checkLoaded = async () => {
+            const currentStatus = await newSound.getStatusAsync();
+            if (currentStatus.isLoaded) {
+              resolve();
+            } else {
+              setTimeout(checkLoaded, 100);
+            }
+          };
+          checkLoaded();
+        });
+      }
+
+      const loadedStatus = await newSound.getStatusAsync();
+      if (loadedStatus.isLoaded) {
+        setDuration(loadedStatus.durationMillis / 1000);
+        await newSound.playAsync();
+        setIsPlaying(true);
+        if (loadedStatus.durationMillis > 0) {
+          startProgressAnimation();
+        }
+      }
+
+      newSound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
     } catch (error) {
       console.error('Error playing audio:', error);
       setError(error.message);
+      setIsPlaying(false);
+    }
+  };
+
+  const onPlaybackStatusUpdate = useCallback(
+    (status) => {
+      if (status.isLoaded) {
+        if (!isSeeking) {
+          const newTime = status.positionMillis / 1000;
+          setCurrentTime(newTime);
+          if (status.durationMillis > 0) {
+            animatedValue.setValue(newTime / (status.durationMillis / 1000));
+          }
+        }
+        
+        if (status.durationMillis && status.durationMillis / 1000 !== duration) {
+          const newDuration = status.durationMillis / 1000;
+          setDuration(newDuration);
+          if (newDuration > 0) {
+            startProgressAnimation();
+          }
+        }
+  
+        if (status.didJustFinish) {
+          if (isRepeat) {
+            soundRef.current?.setPositionAsync(0);
+            soundRef.current?.playAsync();
+          } else {
+            setIsPlaying(false);
+            setCurrentTime(0);
+            animatedValue.setValue(0);
+            cleanupAudio();
+          }
+        }
+
+        setIsBuffering(status.isBuffering);
+      } else if (status.error) {
+        console.error(`Playback Error: ${status.error}`);
+        setError(status.error);
+        setIsPlaying(false);
+      }
+    },
+    [isSeeking, duration, isRepeat]
+  );
+
+  const startProgressAnimation = () => {
+    if (duration <= 0) return;
+    
+    Animated.timing(animatedValue, {
+      toValue: 1,
+      duration: (duration - currentTime) * 1000,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished && isPlaying) {
+        startProgressAnimation();
+      }
+    });
+  };
+
+  const handleSeek = async (value) => {
+    try {
+      if (!soundRef.current) return;
+      
+      const now = Date.now();
+      if (now - lastSeekTime.current < SEEK_DEBOUNCE) {
+        if (seekTimeout.current) {
+          clearTimeout(seekTimeout.current);
+        }
+        seekTimeout.current = setTimeout(() => {
+          performSeek(value);
+        }, SEEK_DEBOUNCE);
+        return;
+      }
+      
+      lastSeekTime.current = now;
+      await performSeek(value);
+    } catch (error) {
+      console.error('Error seeking:', error);
+      setIsSeeking(false);
+    }
+  };
+
+  const performSeek = async (value) => {
+    if (!soundRef.current) return;
+    
+    setIsSeeking(true);
+    try {
+      const status = await soundRef.current.getStatusAsync();
+      if (!status.isLoaded) {
+        console.log('Waiting for sound to load...');
+        await new Promise((resolve) => {
+          const checkLoaded = async () => {
+            const currentStatus = await soundRef.current.getStatusAsync();
+            if (currentStatus.isLoaded) {
+              resolve();
+            } else {
+              setTimeout(checkLoaded, 100);
+            }
+          };
+          checkLoaded();
+        });
+      }
+
+      const newPosition = Math.max(0, Math.min(duration, value * duration));
+      await soundRef.current.setPositionAsync(newPosition * 1000);
+      setCurrentTime(newPosition);
+      animatedValue.setValue(value);
+    } catch (error) {
+      console.error('Error performing seek:', error);
+    } finally {
+      setIsSeeking(false);
     }
   };
 
   const togglePlayPause = async () => {
     try {
-      if (!sound) {
+      if (!soundRef.current) {
         await handlePlayAudio();
         return;
       }
 
+      const status = await soundRef.current.getStatusAsync();
+      if (!status.isLoaded) {
+        console.log('Waiting for sound to load...');
+        await new Promise((resolve) => {
+          const checkLoaded = async () => {
+            const currentStatus = await soundRef.current.getStatusAsync();
+            if (currentStatus.isLoaded) {
+              resolve();
+            } else {
+              setTimeout(checkLoaded, 100);
+            }
+          };
+          checkLoaded();
+        });
+      }
+
       if (isPlaying) {
-        await sound.pauseAsync();
+        await soundRef.current.pauseAsync();
+        animatedValue.stopAnimation();
       } else {
-        await sound.playAsync();
+        if (status.didJustFinish) {
+          await soundRef.current.setPositionAsync(0);
+          setCurrentTime(0);
+          animatedValue.setValue(0);
+        }
+        await soundRef.current.playAsync();
+        if (duration > 0) {
+          startProgressAnimation();
+        }
       }
       setIsPlaying(!isPlaying);
     } catch (error) {
       console.error('Error toggling play/pause:', error);
       setError(error.message);
+      setIsPlaying(false);
     }
+  };
+
+  const handleSkip = async (seconds) => {
+    try {
+      if (!soundRef.current) return;
+      
+      const status = await soundRef.current.getStatusAsync();
+      if (!status.isLoaded) {
+        console.log('Waiting for sound to load...');
+        await new Promise((resolve) => {
+          const checkLoaded = async () => {
+            const currentStatus = await soundRef.current.getStatusAsync();
+            if (currentStatus.isLoaded) {
+              resolve();
+            } else {
+              setTimeout(checkLoaded, 100);
+            }
+          };
+          checkLoaded();
+        });
+      }
+
+      const newPosition = Math.max(0, Math.min(duration, currentTime + seconds));
+      await soundRef.current.setPositionAsync(newPosition * 1000);
+      setCurrentTime(newPosition);
+      animatedValue.setValue(newPosition / duration);
+    } catch (error) {
+      console.error('Error skipping:', error);
+      setError(error.message);
+    }
+  };
+
+  const toggleMute = async () => {
+    try {
+      if (!soundRef.current) return;
+      const status = await soundRef.current.getStatusAsync();
+      if (!status.isLoaded) return;
+
+      const newMuteState = !isMuted;
+      if (newMuteState) {
+        previousVolume.current = volume;
+        await soundRef.current.setVolumeAsync(0);
+      } else {
+        await soundRef.current.setVolumeAsync(previousVolume.current);
+      }
+      setIsMuted(newMuteState);
+    } catch (error) {
+      console.error('Error toggling mute:', error);
+      setError(error.message);
+    }
+  };
+
+  const handleVolumeChange = async (value) => {
+    try {
+      if (!soundRef.current) return;
+      const status = await soundRef.current.getStatusAsync();
+      if (!status.isLoaded) return;
+
+      const newVolume = value;
+      await soundRef.current.setVolumeAsync(newVolume);
+      setVolume(newVolume);
+      if (newVolume === 0) {
+        setIsMuted(true);
+      } else if (isMuted) {
+        setIsMuted(false);
+      }
+    } catch (error) {
+      console.error('Error changing volume:', error);
+      setError(error.message);
+    }
+  };
+
+  const toggleRepeat = () => {
+    setIsRepeat(!isRepeat);
+    if (soundRef.current) {
+      soundRef.current.setIsLoopingAsync(!isRepeat);
+    }
+  };
+
+  const cleanupAudio = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+        setSound(null);
+      }
+      if (seekTimeout.current) {
+        clearTimeout(seekTimeout.current);
+        seekTimeout.current = null;
+      }
+      animatedValue.setValue(0);
+    } catch (error) {
+      console.error('Error cleaning up audio:', error);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   if (isLoading) {
@@ -106,7 +400,7 @@ export default function StoryDetail() {
     return (
       <SafeAreaView className="flex-1 bg-black justify-center items-center">
         <Text className="text-white text-center px-4">{error}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           className="mt-4 px-4 py-2 bg-white/10 rounded-full"
           onPress={() => router.back()}
         >
@@ -120,7 +414,7 @@ export default function StoryDetail() {
     return (
       <SafeAreaView className="flex-1 bg-black justify-center items-center">
         <Text className="text-white">Story not found</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           className="mt-4 px-4 py-2 bg-white/10 rounded-full"
           onPress={() => router.back()}
         >
@@ -135,7 +429,7 @@ export default function StoryDetail() {
       <View className="flex-1">
         {/* Header */}
         <View className="flex-row items-center justify-between px-4 py-4">
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.push('/stories')}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
           <Text className="text-white text-lg font-semibold">Story Details</Text>
@@ -147,7 +441,7 @@ export default function StoryDetail() {
           <View className="px-4 py-6">
             <View className="items-center mb-6">
               <View className="w-32 h-32 rounded-lg bg-white/10 justify-center items-center mb-4">
-                <Ionicons 
+                <Ionicons
                   name={
                     story.mood === 'happy' ? 'sunny' :
                     story.mood === 'sad' ? 'sad' :
@@ -157,8 +451,8 @@ export default function StoryDetail() {
                     story.mood === 'calm' ? 'water' :
                     story.mood === 'mysterious' ? 'moon' : 'flash'
                   }
-                  size={48} 
-                  color="#FFF" 
+                  size={48}
+                  color="#FFF"
                 />
               </View>
               <Text className="text-2xl font-bold text-white text-center mb-2">{story.title}</Text>
@@ -206,25 +500,71 @@ export default function StoryDetail() {
           </View>
         </ScrollView>
 
-        {/* Play Button */}
-        {story.audioUrl && (
-          <View className="px-4 py-4">
-            <TouchableOpacity
-              className="w-full h-14 bg-[#1DB954] rounded-full justify-center items-center flex-row"
-              onPress={togglePlayPause}
-            >
-              <Ionicons
-                name={isPlaying ? "pause" : "play"}
-                size={24}
-                color="#FFF"
+        {/* Enhanced Audio Player */}
+        {story?.audioUrl && (
+          <View className="px-4 py-4 bg-black/50">
+            {/* Progress Bar */}
+            <View className="flex-row items-center mb-4">
+              <Text className="text-white text-xs w-12">{formatTime(currentTime)}</Text>
+              <Slider
+                style={{ flex: 1, height: 40 }}
+                minimumValue={0}
+                maximumValue={duration || 1}
+                value={isSeeking ? currentTime : currentTime}
+                onValueChange={handleSeek}
+                onSlidingComplete={handleSeek}
+                minimumTrackTintColor="#1DB954"
+                maximumTrackTintColor="#FFFFFF"
+                thumbTintColor="#1DB954"
+                tapToSeek={true}
+                />
+              <Text className="text-white text-xs w-12 text-right">{formatTime(duration)}</Text>
+            </View>
+
+            {/* Playback Controls */}
+            <View className="flex-row items-center justify-between mb-4">
+              <TouchableOpacity onPress={() => handleSkip(-10)} className="p-2">
+                <Ionicons name="play-back" size={24} color="#FFF" />
+                <Text className="text-white text-xs text-center">-10s</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={togglePlayPause} className="p-2">
+                <Ionicons
+                  name={isPlaying ? "pause-circle" : "play-circle"}
+                  size={48}
+                  color="#1DB954"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => handleSkip(10)} className="p-2">
+                <Ionicons name="play-forward" size={24} color="#FFF" />
+                <Text className="text-white text-xs text-center">+10s</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Volume Controls */}
+            <View className="flex-row items-center">
+              <TouchableOpacity onPress={toggleMute} className="p-2">
+                <Ionicons
+                  name={isMuted ? "volume-mute" : "volume-high"}
+                  size={24}
+                  color="#FFF"
+                />
+              </TouchableOpacity>
+              <Slider
+                style={{ flex: 1, height: 40 }}
+                minimumValue={0}
+                maximumValue={1}
+                value={volume}
+                onValueChange={handleVolumeChange}
+                minimumTrackTintColor="#1DB954"
+                maximumTrackTintColor="#FFFFFF"
+                thumbTintColor="#1DB954"
               />
-              <Text className="text-white font-semibold ml-2">
-                {isPlaying ? "Pause" : "Play"} Story
-              </Text>
-            </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>
     </SafeAreaView>
   );
-} 
+}
