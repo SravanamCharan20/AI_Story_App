@@ -6,6 +6,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
+import * as FileSystem from 'expo-file-system';
+import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
 
@@ -166,48 +168,228 @@ export default function Profile() {
 
   const handleGenerateStory = async () => {
     if (!audioFile || !storyFile || !formData.title || !formData.hasPermission) {
+      console.log('Validation failed:', {
+        audioFile: !!audioFile,
+        storyFile: !!storyFile,
+        title: !!formData.title,
+        hasPermission: formData.hasPermission
+      });
       setError('Please fill in all required fields and upload both files');
       return;
     }
 
     try {
+      console.log('Starting story generation process...');
       setIsLoading(true);
       setError(null);
 
-      const newStory = {
-        id: Date.now(),
-        title: formData.title,
-        narrator: formData.narrator || 'Unknown Narrator',
-        language: formData.language,
-        ageCategory: formData.ageCategory,
-        genre: formData.genre || 'Uncategorized',
-        mood: formData.mood || 'Neutral',
-        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
-        duration: `${Math.floor(Math.random() * 5) + 3}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
-        type: 'generated',
-        audioUrl: audioFile.uri,
-        storyUrl: storyFile.uri,
-        thumbnail: null,
-        size: storyFile.size,
-        createdAt: new Date().toISOString(),
-        metadata: {
-          author: formData.narrator || 'Unknown Narrator',
-          language: formData.language,
-          ageCategory: formData.ageCategory,
-          genre: formData.genre || 'Uncategorized',
-          mood: formData.mood || 'Neutral',
-          tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
-          description: `${formData.title} - A ${formData.genre || 'story'} in ${formData.language} for ${formData.ageCategory}`,
-          rating: 0,
-          plays: 0
+      // Get current user ID from AsyncStorage
+      console.log('Fetching user data from AsyncStorage...');
+      const userData = await AsyncStorage.getItem('user');
+      console.log('User data from AsyncStorage:', userData);
+
+      if (!userData) {
+        console.error('No user data found in AsyncStorage');
+        throw new Error('User not authenticated');
+      }
+
+      let userId;
+      try {
+        console.log('Parsing user data...');
+        const parsedUserData = JSON.parse(userData);
+        userId = parsedUserData._id;
+        console.log('Parsed user ID:', userId);
+        
+        if (!userId) {
+          console.error('Invalid user data: No user ID found');
+          throw new Error('Invalid user data');
         }
+      } catch (parseError) {
+        console.error('Error parsing user data:', parseError);
+        throw new Error('Invalid user data format');
+      }
+
+      // Validate file existence
+      console.log('Validating files...');
+      const audioFileInfo = await FileSystem.getInfoAsync(audioFile.uri);
+      const storyFileInfo = await FileSystem.getInfoAsync(storyFile.uri);
+      console.log('File validation results:', {
+        audio: { exists: audioFileInfo.exists, size: audioFileInfo.size },
+        story: { exists: storyFileInfo.exists, size: storyFileInfo.size }
+      });
+
+      if (!audioFileInfo.exists || !storyFileInfo.exists) {
+        console.error('Files not accessible:', {
+          audio: !audioFileInfo.exists,
+          story: !storyFileInfo.exists
+        });
+        throw new Error('Selected files are not accessible');
+      }
+
+      // Validate file sizes
+      const MAX_FILE_SIZE = 50 * 1024 * 1024;
+      if (audioFileInfo.size > MAX_FILE_SIZE || storyFileInfo.size > MAX_FILE_SIZE) {
+        console.error('File size exceeded:', {
+          audio: audioFileInfo.size,
+          story: storyFileInfo.size,
+          max: MAX_FILE_SIZE
+        });
+        throw new Error('Files must be smaller than 50MB');
+      }
+
+      // Calculate audio duration
+      console.log('Calculating audio duration...');
+      let duration = '3:00';
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: audioFile.uri },
+          { shouldPlay: false }
+        );
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded && status.durationMillis) {
+          const seconds = Math.floor(status.durationMillis / 1000);
+          const minutes = Math.floor(seconds / 60);
+          const remainingSeconds = seconds % 60;
+          duration = `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+          console.log('Audio duration calculated:', duration);
+        }
+        await sound.unloadAsync();
+      } catch (audioError) {
+        console.warn('Failed to calculate audio duration:', audioError);
+      }
+
+      // Prepare story data
+      console.log('Preparing story data...');
+      const storyData = {
+        title: formData.title.trim(),
+        narrator: formData.narrator ? formData.narrator.trim() : 'Unknown Narrator',
+        language: formData.language || 'Telugu',
+        ageCategory: formData.ageCategory || 'All Ages',
+        genre: formData.genre ? formData.genre.trim() : 'Uncategorized',
+        mood: formData.mood ? formData.mood.trim() : 'Neutral',
+        tags: formData.tags
+          ? formData.tags
+              .split(',')
+              .map(tag => tag.trim())
+              .filter(tag => tag)
+          : [],
+        hasPermission: !!formData.hasPermission,
+        userId,
+        audioFile: {
+          name: audioFile.name,
+          uri: audioFile.uri,
+          size: audioFile.size,
+          type: audioFile.type || 'audio/mpeg',
+        },
+        storyFile: {
+          name: storyFile.name,
+          uri: storyFile.uri,
+          size: storyFile.size,
+          type: storyFile.type || 'application/pdf',
+        },
+      };
+      console.log('Story data prepared:', storyData);
+
+      // Create FormData for file upload
+      console.log('Creating FormData...');
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', storyData.title);
+      formDataToSend.append('narrator', storyData.narrator);
+      formDataToSend.append('language', storyData.language);
+      formDataToSend.append('ageCategory', storyData.ageCategory);
+      formDataToSend.append('genre', storyData.genre);
+      formDataToSend.append('mood', storyData.mood);
+      formDataToSend.append('tags', JSON.stringify(storyData.tags));
+      formDataToSend.append('hasPermission', storyData.hasPermission.toString());
+      formDataToSend.append('userId', storyData.userId);
+      formDataToSend.append('metadata', JSON.stringify({
+        author: storyData.narrator,
+        language: storyData.language,
+        ageCategory: storyData.ageCategory,
+        genre: storyData.genre,
+        mood: storyData.mood,
+        tags: storyData.tags,
+        description: `${storyData.title} - A ${storyData.genre} in ${storyData.language} for ${storyData.ageCategory}`,
+        rating: 0,
+        plays: 0,
+      }));
+
+      // Append files
+      console.log('Appending files to FormData...');
+      formDataToSend.append('audio', {
+        uri: storyData.audioFile.uri,
+        type: storyData.audioFile.type,
+        name: storyData.audioFile.name,
+      });
+      formDataToSend.append('story', {
+        uri: storyData.storyFile.uri,
+        type: storyData.storyFile.type,
+        name: storyData.storyFile.name,
+      });
+
+      // API endpoint
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.105:3000/api/stories/generate';
+      console.log('Sending request to:', API_URL);
+
+      // Make API request
+      console.log('Making API request...');
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formDataToSend,
+      });
+
+      console.log('API response status:', response.status);
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: Failed to upload story`;
+        try {
+          const errorData = await response.json();
+          console.error('API error response:', errorData);
+          errorMessage = errorData.message || errorMessage;
+          if (errorData.error) {
+            errorMessage += `: ${errorData.error}`;
+          }
+        } catch (jsonError) {
+          console.warn('Non-JSON response:', jsonError);
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+      console.log('Story generation response:', responseData);
+
+      // Save to local storage
+      const newStory = {
+        id: responseData.story.id,
+        title: responseData.story.title,
+        narrator: responseData.story.narrator,
+        language: responseData.story.language,
+        ageCategory: responseData.story.ageCategory,
+        genre: responseData.story.genre,
+        mood: responseData.story.mood,
+        tags: responseData.story.tags,
+        duration,
+        type: 'generated',
+        audioUrl: responseData.story.audioUrl,
+        storyUrl: responseData.story.storyUrl,
+        metadata: responseData.story.metadata,
+        createdAt: responseData.story.createdAt
       };
 
-      const existingStories = await AsyncStorage.getItem('uploadedPDFs');
-      const stories = existingStories ? JSON.parse(existingStories) : [];
-      const updatedStories = [...stories, newStory];
-      await AsyncStorage.setItem('uploadedPDFs', JSON.stringify(updatedStories));
-      
+      let updatedStories = [];
+      try {
+        const existingStories = await AsyncStorage.getItem('uploadedPDFs');
+        const stories = existingStories ? JSON.parse(existingStories) : [];
+        updatedStories = [...stories, newStory];
+        await AsyncStorage.setItem('uploadedPDFs', JSON.stringify(updatedStories));
+      } catch (storageError) {
+        console.error('AsyncStorage error:', storageError);
+        throw new Error('Failed to save story locally');
+      }
+
+      // Update state
       setUploadedPdfs(updatedStories);
       setAudioFile(null);
       setStoryFile(null);
@@ -219,9 +401,10 @@ export default function Profile() {
         genre: '',
         mood: '',
         tags: '',
-        hasPermission: false
+        hasPermission: false,
       });
-      
+
+      // Navigate to stories tab
       router.push({
         pathname: '/(tabs)/stories',
         params: { 
@@ -232,15 +415,16 @@ export default function Profile() {
           ageCategory: newStory.ageCategory,
           genre: newStory.genre,
           mood: newStory.mood,
-          tags: JSON.stringify(newStory.tags),
+          tags: newStory.tags.join(','),
           duration: newStory.duration,
           audioUrl: newStory.audioUrl,
-          storyUrl: newStory.storyUrl
-        }
+          storyUrl: newStory.storyUrl,
+        },
       });
     } catch (error) {
-      console.log('Error saving generated story:', error);
-      setError('Error saving the generated story. Please try again.');
+      console.error('Error saving generated story:', error);
+      const errorMessage = error.message || 'Error saving the generated story. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
