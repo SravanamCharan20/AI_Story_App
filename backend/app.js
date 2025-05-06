@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cloudinary from 'cloudinary';
 import userRoutes from './routes/userRoutes.js';
+import storyRoutes from './routes/storyRoutes.js';
 import { config } from 'dotenv';
 import Story from './models/Story.js';
 
@@ -41,6 +42,14 @@ const uploadToCloudinary = async (file, folder) => {
 const app = express();
 config();
 
+// Configure CORS
+app.use(cors({
+  origin: ['http://localhost:8081', 'http://192.168.0.109:8081', 'http://192.168.0.109:8081'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ 
@@ -67,15 +76,10 @@ const upload = multer({
 // Middleware
 app.use(json());
 app.use(cookieParser());
-app.use(cors({
-  origin: ['http://localhost:8081', 'http://192.168.0.105:8081', 'http://localhost:3000', 'http://192.168.0.105:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
 
 // Routes
 app.use('/api/user', userRoutes);
+app.use('/api/stories', storyRoutes);
 
 app.post('/api/stories/generate', upload.fields([
   { name: 'audio', maxCount: 1 },

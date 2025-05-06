@@ -210,14 +210,29 @@ export default function Stories() {
       }
 
       // Use the correct API URL - replace localhost with your actual server IP
-      const API_URL = 'http://192.168.0.105:3000';
+      const API_URL = 'http://192.168.0.109:3000';
       console.log('Fetching stories from API:', `${API_URL}/api/stories/user/${userId}`);
       
-      const response = await fetch(`${API_URL}/api/stories/user/${userId}`);
+      const response = await fetch(`${API_URL}/api/stories/user/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      }).catch(error => {
+        console.error('Network error details:', error);
+        throw new Error(`Network error: ${error.message}`);
+      });
       
       if (!response.ok) {
-        console.error('API response not OK:', response.status, response.statusText);
-        throw new Error('Failed to fetch stories from server');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: errorData
+        });
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -227,19 +242,26 @@ export default function Stories() {
       const transformedStories = data.map(story => ({
         id: story._id, // Convert _id to id
         title: story.title,
-        narrator: story.narrator,
-        language: story.language,
-        ageCategory: story.ageCategory,
-        genre: story.genre,
+        author: story.narrator, // Map narrator to author
         mood: story.mood,
-        tags: story.tags || [],
-        duration: '0:00', // You might want to calculate this from audio
+        category: story.genre, // Map genre to category
+        duration: story.duration || '0:00',
+        thumbnail: null,
         type: 'generated',
+        description: story.metadata?.description || '',
+        rating: story.metadata?.rating || 0,
+        plays: story.metadata?.plays || 0,
+        createdAt: story.createdAt,
         audioUrl: story.audioUrl,
         storyUrl: story.storyUrl,
-        metadata: story.metadata,
-        createdAt: story.createdAt
+        tags: story.tags || [], // Include tags
+        language: story.language,
+        ageCategory: story.ageCategory
       }));
+
+      console.log('Transformed stories:', transformedStories);
+      setStories(transformedStories);
+      setAllStories(transformedStories);
 
       // Also load local stories as fallback
       console.log('Checking for local stories...');
@@ -313,29 +335,7 @@ export default function Stories() {
   };
 
   const handleViewStory = (story) => {
-    if (!story || !story.id) {
-      console.error('Invalid story data:', story);
-      return;
-    }
-
-    // Navigate to the story detail page with the story ID
-    navigation.navigate('StoryDetail', {
-      storyId: story.id,
-      story: {
-        title: story.title,
-        narrator: story.narrator,
-        language: story.language,
-        ageCategory: story.ageCategory,
-        genre: story.genre,
-        mood: story.mood,
-        tags: story.tags,
-        duration: story.duration,
-        audioUrl: story.audioUrl,
-        storyUrl: story.storyUrl,
-        metadata: story.metadata,
-        createdAt: story.createdAt
-      }
-    });
+    router.push(`/story/${story.id}`);
   };
 
   // Update the filtered stories logic
@@ -726,7 +726,6 @@ export default function Stories() {
   return (
     <SafeAreaView className="flex-1 bg-black">
       <View className="flex-1">
-        {/* Main Content */}
         <ScrollView 
           showsVerticalScrollIndicator={false}
           className="flex-1"
@@ -805,72 +804,70 @@ export default function Stories() {
           <View className="px-4">
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-xl font-bold text-white">Stories</Text>
-              <Text className="text-sm text-gray-400">{getFilteredStories().length} stories</Text>
+              <Text className="text-sm text-gray-400">{stories.length} stories</Text>
             </View>
 
             {isLoading ? (
               <View className="items-center py-4">
-                <Text className="text-gray-400">Loading stories...</Text>
+                <ActivityIndicator size="large" color="#FFF" />
               </View>
             ) : stories.length === 0 ? (
               <View className="items-center py-4">
                 <Text className="text-gray-400">No stories found</Text>
               </View>
             ) : (
-              sortStories(getFilteredStories())?.map((story) => (
-                story && story.id && (
-                  <TouchableOpacity
-                    key={story.id}
-                    onPress={() => handleViewStory(story)}
-                    className="flex-row items-center py-3 border-b border-white/10"
-                  >
-                    <View className="w-12 h-12 rounded-md bg-white/10 justify-center items-center mr-3">
-                      <Ionicons 
-                        name={
-                          story.mood === 'happy' ? 'sunny' :
-                          story.mood === 'sad' ? 'sad' :
-                          story.mood === 'angry' ? 'flame' :
-                          story.mood === 'joy' ? 'happy' :
-                          story.mood === 'surprise' ? 'alert' :
-                          story.mood === 'calm' ? 'water' :
-                          story.mood === 'mysterious' ? 'moon' : 'flash'
-                        }
-                        size={24} 
-                        color="#FFF" 
+              stories.map((story) => (
+                <TouchableOpacity
+                  key={story.id}
+                  onPress={() => handleViewStory(story)}
+                  className="flex-row items-center py-3 border-b border-white/10"
+                >
+                  <View className="w-12 h-12 rounded-md bg-white/10 justify-center items-center mr-3">
+                    <Ionicons 
+                      name={
+                        story.mood === 'happy' ? 'sunny' :
+                        story.mood === 'sad' ? 'sad' :
+                        story.mood === 'angry' ? 'flame' :
+                        story.mood === 'joy' ? 'happy' :
+                        story.mood === 'surprise' ? 'alert' :
+                        story.mood === 'calm' ? 'water' :
+                        story.mood === 'mysterious' ? 'moon' : 'flash'
+                      }
+                      size={24} 
+                      color="#FFF" 
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-base font-semibold text-white mb-1" numberOfLines={1}>
+                      {story.title}
+                    </Text>
+                    <Text className="text-sm text-gray-400" numberOfLines={1}>
+                      {story.author} • {story.language} • {story.ageCategory}
+                    </Text>
+                    <Text className="text-xs text-gray-500 mt-1" numberOfLines={1}>
+                      {story.category} • {story.duration}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center gap-3">
+                    <View className="flex-row items-center">
+                      <Ionicons name="star" size={14} color="#1DB954" />
+                      <Text className="text-sm text-gray-400 ml-1">{story.rating || '0.0'}</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handlePlayAudio(story);
+                      }}
+                      className="w-8 h-8 rounded-full bg-white/10 justify-center items-center"
+                    >
+                      <Ionicons
+                        name={currentPlayingId === story.id ? "pause" : "play"}
+                        size={16}
+                        color="#FFF"
                       />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-base font-semibold text-white mb-1" numberOfLines={1}>
-                        {story.title}
-                      </Text>
-                      <Text className="text-sm text-gray-400" numberOfLines={1}>
-                        {story.narrator || story.author} • {story.language} • {story.ageCategory}
-                      </Text>
-                      <Text className="text-xs text-gray-500 mt-1" numberOfLines={1}>
-                        {story.genre} • {story.duration}
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center gap-3">
-                      <View className="flex-row items-center">
-                        <Ionicons name="star" size={14} color="#1DB954" />
-                        <Text className="text-sm text-gray-400 ml-1">{story.rating || '0.0'}</Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handlePlayAudio(story);
-                        }}
-                        className="w-8 h-8 rounded-full bg-white/10 justify-center items-center"
-                      >
-                        <Ionicons
-                          name={currentPlayingId === story.id ? "pause" : "play"}
-                          size={16}
-                          color="#FFF"
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                )
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
