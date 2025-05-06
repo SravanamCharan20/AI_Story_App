@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Audio } from 'expo-av';
 import { fetch } from 'react-native-fetch-api';
 import Slider from '@react-native-community/slider';
-import { Animated } from 'react-native';
+import { Animated, PanResponder } from 'react-native';
 
 export default function StoryDetail() {
   const { id } = useLocalSearchParams();
@@ -24,8 +24,12 @@ export default function StoryDetail() {
   const [isBuffering, setIsBuffering] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
   const [isShuffle, setIsShuffle] = useState(false);
+  const [previewTime, setPreviewTime] = useState(0);
+  const [showTimePreview, setShowTimePreview] = useState(false);
+  
   const soundRef = useRef(null);
-  const animatedValue = useRef(new Animated.Value(0)).current;
+  const progressBarWidth = useRef(0);
+  const wasPlayingBeforeDrag = useRef(false);
   const previousVolume = useRef(1.0);
   const seekTimeout = useRef(null);
   const lastSeekTime = useRef(0);
@@ -34,6 +38,97 @@ export default function StoryDetail() {
     android: 150,
     default: 100,
   });
+
+  // Progress bar animation
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const playheadScale = useRef(new Animated.Value(1)).current;
+  const playheadOpacity = useRef(new Animated.Value(0.8)).current;
+  const timePreviewAnim = useRef(new Animated.Value(0)).current;
+
+  const [progressBarLayout, setProgressBarLayout] = useState({ x: 0, width: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  // PanResponder for progress bar
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        setIsDragging(true);
+        setIsSeeking(true);
+        setShowTimePreview(true);
+        wasPlayingBeforeDrag.current = isPlaying;
+        if (isPlaying) {
+          soundRef.current?.pauseAsync();
+        }
+
+        // Calculate progress based on touch position relative to progress bar
+        const touchX = evt.nativeEvent.pageX - progressBarLayout.x;
+        const progress = Math.max(0, Math.min(1, touchX / progressBarLayout.width));
+        setPreviewTime(progress * duration);
+        
+        // Stop any ongoing animations
+        progressAnim.stopAnimation();
+        progressAnim.setValue(progress);
+        timePreviewAnim.setValue(progress);
+
+        Animated.parallel([
+          Animated.spring(playheadScale, {
+            toValue: 1.5,
+            useNativeDriver: true,
+          }),
+          Animated.spring(playheadOpacity, {
+            toValue: 1,
+            useNativeDriver: true,
+          })
+        ]).start();
+      },
+      onPanResponderMove: (evt) => {
+        const touchX = evt.nativeEvent.pageX - progressBarLayout.x;
+        const progress = Math.max(0, Math.min(1, touchX / progressBarLayout.width));
+        const previewTimeValue = progress * duration;
+        setPreviewTime(previewTimeValue);
+        progressAnim.setValue(progress);
+        timePreviewAnim.setValue(progress);
+      },
+      onPanResponderRelease: async (evt) => {
+        const touchX = evt.nativeEvent.pageX - progressBarLayout.x;
+        const progress = Math.max(0, Math.min(1, touchX / progressBarLayout.width));
+        await handleSeek(progress);
+        setIsDragging(false);
+        setIsSeeking(false);
+        setShowTimePreview(false);
+        
+        Animated.parallel([
+          Animated.spring(playheadScale, {
+            toValue: 1,
+            useNativeDriver: true,
+          }),
+          Animated.spring(playheadOpacity, {
+            toValue: 0.8,
+            useNativeDriver: true,
+          })
+        ]).start();
+
+        if (wasPlayingBeforeDrag.current) {
+          soundRef.current?.playAsync();
+        }
+      },
+      onPanResponderTerminate: () => {
+        setIsDragging(false);
+        setIsSeeking(false);
+        setShowTimePreview(false);
+        if (wasPlayingBeforeDrag.current) {
+          soundRef.current?.playAsync();
+        }
+      }
+    })
+  ).current;
+
+  // Update time preview position when progress changes
+  useEffect(() => {
+    timePreviewAnim.setValue(progressAnim._value);
+  }, [progressAnim._value]);
 
   useEffect(() => {
     const setupAudio = async () => {
@@ -118,9 +213,7 @@ export default function StoryDetail() {
         setDuration(loadedStatus.durationMillis / 1000);
         await newSound.playAsync();
         setIsPlaying(true);
-        if (loadedStatus.durationMillis > 0) {
-          startProgressAnimation();
-        }
+        startProgressAnimation();
       }
 
       newSound.setOnPlaybackStatusUpdate(onPlaybackStatusUpdate);
@@ -138,16 +231,13 @@ export default function StoryDetail() {
           const newTime = status.positionMillis / 1000;
           setCurrentTime(newTime);
           if (status.durationMillis > 0) {
-            animatedValue.setValue(newTime / (status.durationMillis / 1000));
+            progressAnim.setValue(newTime / (status.durationMillis / 1000));
           }
         }
         
         if (status.durationMillis && status.durationMillis / 1000 !== duration) {
           const newDuration = status.durationMillis / 1000;
           setDuration(newDuration);
-          if (newDuration > 0) {
-            startProgressAnimation();
-          }
         }
   
         if (status.didJustFinish) {
@@ -157,7 +247,7 @@ export default function StoryDetail() {
           } else {
             setIsPlaying(false);
             setCurrentTime(0);
-            animatedValue.setValue(0);
+            progressAnim.setValue(0);
             cleanupAudio();
           }
         }
@@ -175,10 +265,10 @@ export default function StoryDetail() {
   const startProgressAnimation = () => {
     if (duration <= 0) return;
     
-    Animated.timing(animatedValue, {
+    Animated.timing(progressAnim, {
       toValue: 1,
       duration: (duration - currentTime) * 1000,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished && isPlaying) {
         startProgressAnimation();
@@ -190,33 +280,8 @@ export default function StoryDetail() {
     try {
       if (!soundRef.current) return;
       
-      const now = Date.now();
-      if (now - lastSeekTime.current < SEEK_DEBOUNCE) {
-        if (seekTimeout.current) {
-          clearTimeout(seekTimeout.current);
-        }
-        seekTimeout.current = setTimeout(() => {
-          performSeek(value);
-        }, SEEK_DEBOUNCE);
-        return;
-      }
-      
-      lastSeekTime.current = now;
-      await performSeek(value);
-    } catch (error) {
-      console.error('Error seeking:', error);
-      setIsSeeking(false);
-    }
-  };
-
-  const performSeek = async (value) => {
-    if (!soundRef.current) return;
-    
-    setIsSeeking(true);
-    try {
       const status = await soundRef.current.getStatusAsync();
       if (!status.isLoaded) {
-        console.log('Waiting for sound to load...');
         await new Promise((resolve) => {
           const checkLoaded = async () => {
             const currentStatus = await soundRef.current.getStatusAsync();
@@ -233,11 +298,17 @@ export default function StoryDetail() {
       const newPosition = Math.max(0, Math.min(duration, value * duration));
       await soundRef.current.setPositionAsync(newPosition * 1000);
       setCurrentTime(newPosition);
-      animatedValue.setValue(value);
+      
+      // Update animations
+      progressAnim.setValue(value);
+      timePreviewAnim.setValue(value);
+      
+      // If playing, restart the progress animation
+      if (isPlaying) {
+        startProgressAnimation();
+      }
     } catch (error) {
-      console.error('Error performing seek:', error);
-    } finally {
-      setIsSeeking(false);
+      console.error('Error seeking:', error);
     }
   };
 
@@ -266,12 +337,12 @@ export default function StoryDetail() {
 
       if (isPlaying) {
         await soundRef.current.pauseAsync();
-        animatedValue.stopAnimation();
+        progressAnim.stopAnimation();
       } else {
         if (status.didJustFinish) {
           await soundRef.current.setPositionAsync(0);
           setCurrentTime(0);
-          animatedValue.setValue(0);
+          progressAnim.setValue(0);
         }
         await soundRef.current.playAsync();
         if (duration > 0) {
@@ -309,7 +380,7 @@ export default function StoryDetail() {
       const newPosition = Math.max(0, Math.min(duration, currentTime + seconds));
       await soundRef.current.setPositionAsync(newPosition * 1000);
       setCurrentTime(newPosition);
-      animatedValue.setValue(newPosition / duration);
+      progressAnim.setValue(newPosition / duration);
     } catch (error) {
       console.error('Error skipping:', error);
       setError(error.message);
@@ -375,7 +446,7 @@ export default function StoryDetail() {
         clearTimeout(seekTimeout.current);
         seekTimeout.current = null;
       }
-      animatedValue.setValue(0);
+      progressAnim.setValue(0);
     } catch (error) {
       console.error('Error cleaning up audio:', error);
     }
@@ -505,21 +576,70 @@ export default function StoryDetail() {
           <View className="px-4 py-4 bg-black/50">
             {/* Progress Bar */}
             <View className="flex-row items-center mb-4">
-              <Text className="text-white text-xs w-12">{formatTime(currentTime)}</Text>
-              <Slider
-                style={{ flex: 1, height: 40 }}
-                minimumValue={0}
-                maximumValue={duration || 1}
-                value={isSeeking ? currentTime : currentTime}
-                onValueChange={handleSeek}
-                onSlidingComplete={handleSeek}
-                minimumTrackTintColor="#1DB954"
-                maximumTrackTintColor="#FFFFFF"
-                thumbTintColor="#1DB954"
-                tapToSeek={true}
+              <Text className="text-white text-xs w-12">{formatTime(isSeeking ? previewTime : currentTime)}</Text>
+              <View 
+                className="flex-1 h-12 justify-center"
+                onLayout={(event) => {
+                  const { x, width } = event.nativeEvent.layout;
+                  setProgressBarLayout({ x, width });
+                  progressBarWidth.current = width;
+                }}
+              >
+                <View 
+                  className="h-1 bg-white/20 rounded-full overflow-hidden"
+                  {...panResponder.panHandlers}
+                >
+                  <Animated.View
+                    className="h-full bg-[#1DB954] rounded-full absolute"
+                    style={{
+                      transform: [{
+                        translateX: progressAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-progressBarLayout.width, 0],
+                        })
+                      }],
+                      width: progressBarLayout.width,
+                    }}
+                  />
+                </View>
+                <Animated.View
+                  className="absolute w-4 h-4 bg-white rounded-full -top-1.5"
+                  style={{
+                    transform: [
+                      {
+                        translateX: progressAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, progressBarLayout.width],
+                        })
+                      },
+                      { scale: playheadScale }
+                    ],
+                    opacity: playheadOpacity,
+                  }}
                 />
+              </View>
               <Text className="text-white text-xs w-12 text-right">{formatTime(duration)}</Text>
             </View>
+
+            {/* Time Preview */}
+            {showTimePreview && (
+              <Animated.View 
+                className="absolute -top-8 bg-black/80 px-2 py-1 rounded"
+                style={{
+                  transform: [
+                    {
+                      translateX: timePreviewAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [progressBarLayout.x, progressBarLayout.x + progressBarLayout.width],
+                      })
+                    },
+                    { translateX: -20 }
+                  ]
+                }}
+              >
+                <Text className="text-white text-xs">{formatTime(previewTime)}</Text>
+              </Animated.View>
+            )}
 
             {/* Playback Controls */}
             <View className="flex-row items-center justify-between mb-4">
