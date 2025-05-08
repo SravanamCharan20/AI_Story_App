@@ -738,12 +738,10 @@ export default function Stories() {
                 <Text className="text-sm text-gray-400 mt-1">Let's find your next story</Text>
               </View>
               <View className="flex-row items-center gap-3">
-                <TouchableOpacity className="w-10 h-10 rounded-full bg-white/10 justify-center items-center">
-                  <Ionicons name="notifications-outline" size={20} color="#FFF" />
-                </TouchableOpacity>
-                <TouchableOpacity className="w-10 h-10 rounded-full bg-white/10 justify-center items-center">
-                  <Ionicons name="time-outline" size={20} color="#FFF" />
-                </TouchableOpacity>
+              <TouchableOpacity className="w-20 h-10 rounded-full bg-white/10 justify-center items-center flex-row" onPress={() => router.push('/create')}>
+                <Ionicons name="add" size={20} color="#fff" className="mr-2" />
+                <Text className="text-sm font-medium text-white">Create</Text>
+              </TouchableOpacity>
               </View>
             </View>
 

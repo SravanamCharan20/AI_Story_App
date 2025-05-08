@@ -3,13 +3,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ScreenWrapper({ children }) {
-  // const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 85 : 65;
-  
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="transparent" 
+        translucent 
+      />
       <LinearGradient
-        colors={['#fff', '#fff']}
+        colors={['#000', '#000']}
         style={{
           position: 'absolute',
           left: 0,
@@ -18,11 +20,11 @@ export default function ScreenWrapper({ children }) {
           bottom: 0,
         }}
       />
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={{ flex: 1, marginBottom: 0 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
+        <View style={{ flex: 1 }}>
           {children}
         </View>
       </SafeAreaView>
     </View>
   );
-} 
+}
