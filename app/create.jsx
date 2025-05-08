@@ -179,14 +179,14 @@ export default function CreateStory() {
     }
 
     try {
-      console.log('Starting story generation process...');
+      // console.log('Starting story generation process...');
       setIsLoading(true);
       setError(null);
 
       // Get current user ID from AsyncStorage
-      console.log('Fetching user data from AsyncStorage...');
+      // console.log('Fetching user data from AsyncStorage...');
       const userData = await AsyncStorage.getItem('user');
-      console.log('User data from AsyncStorage:', userData);
+      // console.log('User data from AsyncStorage:', userData);
 
       if (!userData) {
         console.error('No user data found in AsyncStorage');
@@ -195,10 +195,10 @@ export default function CreateStory() {
 
       let userId;
       try {
-        console.log('Parsing user data...');
+        // console.log('Parsing user data...');
         const parsedUserData = JSON.parse(userData);
         userId = parsedUserData._id;
-        console.log('Parsed user ID:', userId);
+        // console.log('Parsed user ID:', userId);
         
         if (!userId) {
           console.error('Invalid user data: No user ID found');
@@ -210,13 +210,9 @@ export default function CreateStory() {
       }
 
       // Validate file existence
-      console.log('Validating files...');
+      // console.log('Validating files...');
       const audioFileInfo = await FileSystem.getInfoAsync(audioFile.uri);
       const storyFileInfo = await FileSystem.getInfoAsync(storyFile.uri);
-      console.log('File validation results:', {
-        audio: { exists: audioFileInfo.exists, size: audioFileInfo.size },
-        story: { exists: storyFileInfo.exists, size: storyFileInfo.size }
-      });
 
       if (!audioFileInfo.exists || !storyFileInfo.exists) {
         console.error('Files not accessible:', {
@@ -238,7 +234,6 @@ export default function CreateStory() {
       }
 
       // Calculate audio duration
-      console.log('Calculating audio duration...');
       let duration = '3:00';
       try {
         const { sound } = await Audio.Sound.createAsync(
@@ -288,10 +283,10 @@ export default function CreateStory() {
           type: storyFile.type || 'application/pdf',
         },
       };
-      console.log('Story data prepared:', storyData);
+      // console.log('Story data prepared:', storyData);
 
       // Create FormData for file upload
-      console.log('Creating FormData...');
+      // console.log('Creating FormData...');
       const formDataToSend = new FormData();
       formDataToSend.append('title', storyData.title);
       formDataToSend.append('narrator', storyData.narrator);

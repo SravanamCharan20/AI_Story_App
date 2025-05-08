@@ -9,6 +9,7 @@ import { useIsFocused, useNavigation } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
 import { PanResponder, TouchableWithoutFeedback } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAudioPlayer } from '../context/AudioPlayerContext';
 
 const { width } = Dimensions.get('window');
 
@@ -91,6 +92,7 @@ export default function Stories() {
   const [error, setError] = useState(null);
   const [sound, setSound] = useState(null);
   const [currentPlayingId, setCurrentPlayingId] = useState(null);
+  const { currentStory, isPlaying: audioPlayerIsPlaying, togglePlayPause, loadAndPlayStory } = useAudioPlayer();
 
   const defaultStories = [
     {
@@ -174,14 +176,14 @@ export default function Stories() {
 
   const loadStories = async () => {
     try {
-      console.log('Starting to load stories...');
+      // console.log('Starting to load stories...');
       setIsLoading(true);
       setError(null);
 
       // Get user ID from AsyncStorage
-      console.log('Fetching user data from AsyncStorage...');
+      // console.log('Fetching user data from AsyncStorage...');
       const userData = await AsyncStorage.getItem('user');
-      console.log('User data from AsyncStorage:', userData);
+      // console.log('User data from AsyncStorage:', userData);
 
       if (!userData) {
         console.log('No user data found, showing default stories');
@@ -192,10 +194,10 @@ export default function Stories() {
 
       let userId;
       try {
-        console.log('Parsing user data...');
+        // console.log('Parsing user data...');
         const parsedUserData = JSON.parse(userData);
         userId = parsedUserData._id;
-        console.log('Parsed user ID:', userId);
+        // console.log('Parsed user ID:', userId);
         
         if (!userId) {
           console.error('Invalid user data: No user ID found');
@@ -211,7 +213,7 @@ export default function Stories() {
 
       // Use the correct API URL - replace localhost with your actual server IP
       const API_URL = 'http://192.168.0.109:3000';
-      console.log('Fetching stories from API:', `${API_URL}/api/stories/user/${userId}`);
+      // console.log('Fetching stories from API:', `${API_URL}/api/stories/user/${userId}`);
       
       const response = await fetch(`${API_URL}/api/stories/user/${userId}`, {
         method: 'GET',
@@ -236,7 +238,7 @@ export default function Stories() {
       }
 
       const data = await response.json();
-      console.log('Received stories from API:', data);
+      // console.log('Received stories from API:', data);
       
       // Transform the stories to match the expected format
       const transformedStories = data.map(story => ({
@@ -259,28 +261,23 @@ export default function Stories() {
         ageCategory: story.ageCategory
       }));
 
-      console.log('Transformed stories:', transformedStories);
+      // console.log('Transformed stories:', transformedStories);
       setStories(transformedStories);
       setAllStories(transformedStories);
 
       // Also load local stories as fallback
-      console.log('Checking for local stories...');
+      // console.log('Checking for local stories...');
       const localStories = await AsyncStorage.getItem('uploadedPDFs');
-      console.log('Local stories from AsyncStorage:', localStories);
+      // console.log('Local stories from AsyncStorage:', localStories);
 
       if (localStories) {
         try {
           const parsedLocalStories = JSON.parse(localStories);
-          console.log('Parsed local stories:', parsedLocalStories);
+          // console.log('Parsed local stories:', parsedLocalStories);
           
           setStories(prevStories => {
             const localStoryIds = new Set(prevStories.map(s => s.id));
             const newLocalStories = parsedLocalStories.filter(s => !localStoryIds.has(s.id));
-            console.log('Merging stories:', {
-              previous: prevStories.length,
-              newLocal: newLocalStories.length,
-              total: prevStories.length + newLocalStories.length
-            });
             return [...transformedStories, ...newLocalStories];
           });
         } catch (localError) {
@@ -299,43 +296,31 @@ export default function Stories() {
       console.log('Falling back to default stories due to error');
       setStories(defaultStories);
     } finally {
-      console.log('Finished loading stories');
+      // console.log('Finished loading stories');
       setIsLoading(false);
     }
   };
 
   const handlePlayAudio = async (story) => {
     try {
-      if (sound) {
-        await sound.unloadAsync();
+      if (currentStory?.id === story.id) {
+        togglePlayPause();
+      } else {
+        await loadAndPlayStory(story);
       }
-
-      if (currentPlayingId === story.id) {
-        setCurrentPlayingId(null);
-        return;
-      }
-
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: story.audioUrl },
-        { shouldPlay: true }
-      );
-      setSound(newSound);
-      setCurrentPlayingId(story.id);
-
-      newSound.setOnPlaybackStatusUpdate(async (status) => {
-        if (status.didJustFinish) {
-          setCurrentPlayingId(null);
-          await newSound.unloadAsync();
-        }
-      });
     } catch (error) {
       console.error('Error playing audio:', error);
-      setError('Failed to play audio');
     }
   };
 
   const handleViewStory = (story) => {
-    router.push(`/story/${story.id}`);
+    router.push({
+      pathname: '/story-detail',
+      params: { 
+        storyId: story.id,
+        story: JSON.stringify(story)
+      }
+    });
   };
 
   // Update the filtered stories logic
@@ -370,29 +355,6 @@ export default function Stories() {
         
         return true;
       });
-  };
-
-  const togglePlayPause = async () => {
-    if (!soundObject.current || isLoading) return;
-
-    try {
-      const status = await soundObject.current.getStatusAsync();
-      if (!status.isLoaded) return;
-
-      if (isPlaying) {
-        await soundObject.current.pauseAsync();
-      } else {
-        if (status.didJustFinish) {
-          await soundObject.current.setPositionAsync(0);
-          setCurrentTime(0);
-          animatedValue.setValue(0);
-        }
-        await soundObject.current.playAsync();
-      }
-      setIsPlaying(!isPlaying);
-    } catch (error) {
-      console.log('Error toggling play/pause:', error);
-    }
   };
 
   const handleClose = async () => {
@@ -723,6 +685,58 @@ export default function Stories() {
     }
   };
 
+  const renderMiniPlayer = () => {
+    if (!currentStory) return null;
+
+    return (
+      <TouchableOpacity 
+        className="absolute bottom-0 left-0 right-0 bg-[#282828] px-4 py-3 flex-row items-center"
+        onPress={() => setShowPlayer(true)}
+      >
+        <View className="w-10 h-10 rounded-md bg-white/10 justify-center items-center mr-3">
+          <Ionicons 
+            name={
+              currentStory.mood === 'happy' ? 'sunny' :
+              currentStory.mood === 'sad' ? 'sad' :
+              currentStory.mood === 'angry' ? 'flame' :
+              currentStory.mood === 'joy' ? 'happy' :
+              currentStory.mood === 'surprise' ? 'alert' :
+              currentStory.mood === 'calm' ? 'water' :
+              currentStory.mood === 'mysterious' ? 'moon' : 'flash'
+            }
+            size={20} 
+            color="#FFF" 
+          />
+        </View>
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-white" numberOfLines={1}>
+            {currentStory.title}
+          </Text>
+          <Text className="text-xs text-gray-400" numberOfLines={1}>
+            {currentStory.narrator || currentStory.author} • {currentStory.language}
+          </Text>
+        </View>
+        <View className="flex-row items-center gap-4">
+          <TouchableOpacity 
+            onPress={(e) => {
+              e.stopPropagation();
+              togglePlayPause();
+            }}
+          >
+            <Ionicons
+              name={audioPlayerIsPlaying ? "pause" : "play"}
+              size={24}
+              color="#FFF"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowPlayer(true)}>
+            <Ionicons name="play-skip-forward" size={24} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-black">
       <View className="flex-1">
@@ -738,10 +752,10 @@ export default function Stories() {
                 <Text className="text-sm text-gray-400 mt-1">Let's find your next story</Text>
               </View>
               <View className="flex-row items-center gap-3">
-              <TouchableOpacity className="w-20 h-10 rounded-full bg-white/10 justify-center items-center flex-row" onPress={() => router.push('/create')}>
-                <Ionicons name="add" size={20} color="#fff" className="mr-2" />
-                <Text className="text-sm font-medium text-white">Create</Text>
-              </TouchableOpacity>
+                <TouchableOpacity className="w-20 h-10 rounded-full bg-white/10 justify-center items-center flex-row" onPress={() => router.push('/create')}>
+                  <Ionicons name="add" size={20} color="#fff" className="mr-2" />
+                  <Text className="text-sm font-medium text-white">Create</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -859,7 +873,7 @@ export default function Stories() {
                       className="w-8 h-8 rounded-full bg-white/10 justify-center items-center"
                     >
                       <Ionicons
-                        name={currentPlayingId === story.id ? "pause" : "play"}
+                        name={currentStory?.id === story.id && audioPlayerIsPlaying ? "pause" : "play"}
                         size={16}
                         color="#FFF"
                       />
@@ -871,186 +885,8 @@ export default function Stories() {
           </View>
         </ScrollView>
 
-        {/* Mini Player */}
-        {selectedStory && (
-          <TouchableOpacity 
-            className="absolute bottom-0 left-0 right-0 bg-[#282828] px-4 py-3 flex-row items-center"
-            onPress={() => setShowPlayer(true)}
-          >
-            <View className="w-10 h-10 rounded-md bg-white/10 justify-center items-center mr-3">
-              <Ionicons 
-                name={
-                  selectedStory.mood === 'happy' ? 'sunny' :
-                  selectedStory.mood === 'sad' ? 'sad' :
-                  selectedStory.mood === 'angry' ? 'flame' :
-                  selectedStory.mood === 'joy' ? 'happy' :
-                  selectedStory.mood === 'surprise' ? 'alert' :
-                  selectedStory.mood === 'calm' ? 'water' :
-                  selectedStory.mood === 'mysterious' ? 'moon' : 'flash'
-                }
-                size={20} 
-                color="#FFF" 
-              />
-            </View>
-            <View className="flex-1">
-              <Text className="text-sm font-semibold text-white" numberOfLines={1}>
-                {selectedStory.title}
-              </Text>
-              <Text className="text-xs text-gray-400" numberOfLines={1}>
-                {selectedStory.narrator || selectedStory.author} • {selectedStory.language}
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-4">
-              <TouchableOpacity onPress={togglePlayPause}>
-                <Ionicons
-                  name={isPlaying ? "pause" : "play"}
-                  size={24}
-                  color="#FFF"
-                />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowPlayer(true)}>
-                <Ionicons name="play-skip-forward" size={24} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Full Screen Player */}
-        <Modal
-          visible={showPlayer}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={handleClose}
-        >
-          {selectedStory && (
-            <View className="flex-1 bg-black">
-              <View className="flex-1 pt-12">
-                {/* Header */}
-                <View className="flex-row items-center justify-between px-4 mb-8">
-                  <TouchableOpacity
-                    className="w-10 h-10 rounded-full bg-white/10 justify-center items-center"
-                    onPress={handleClose}
-                  >
-                    <Ionicons name="chevron-down" size={24} color="#FFF" />
-                  </TouchableOpacity>
-                  <View className="items-center">
-                    <Text className="text-sm text-gray-400">Now Playing</Text>
-                    {/* <Text className="text-base font-semibold text-white">{selectedStory.title}</Text> */}
-                  </View>
-                  <TouchableOpacity className="w-10 h-10 rounded-full bg-white/10 justify-center items-center">
-                    <Ionicons name="ellipsis-horizontal" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Album Art */}
-                <View className="items-center px-8 mb-8">
-                  <View className="w-[300px] h-[300px] rounded-lg bg-white/10 justify-center items-center mb-6">
-                    <Ionicons 
-                      name={
-                        selectedStory.mood === 'happy' ? 'sunny' :
-                        selectedStory.mood === 'sad' ? 'sad' :
-                        selectedStory.mood === 'angry' ? 'flame' :
-                        selectedStory.mood === 'joy' ? 'happy' :
-                        selectedStory.mood === 'surprise' ? 'alert' :
-                        selectedStory.mood === 'calm' ? 'water' :
-                        selectedStory.mood === 'mysterious' ? 'moon' : 'flash'
-                      }
-                      size={80} 
-                      color="#FFF" 
-                    />
-                  </View>
-                  
-                  <View className="items-center">
-                    <Text className="text-2xl font-bold text-white text-center mb-2">{selectedStory.title}</Text>
-                    <Text className="text-base text-gray-400 text-center mb-1">{selectedStory.narrator || selectedStory.author}</Text>
-                    <Text className="text-sm text-gray-500 text-center">
-                      {selectedStory.language} • {selectedStory.ageCategory} • {selectedStory.genre}
-                    </Text>
-                    {/* {selectedStory.metadata?.description && (
-                      <Text className="text-sm text-gray-400 text-center mt-2 px-4">
-                        {selectedStory.metadata.description}
-                      </Text>
-                    )} */}
-                  </View>
-                </View>
-
-                {/* Progress Bar */}
-                <View className="px-4 mb-4">
-                  <View className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
-                    <Animated.View
-                      className="h-full bg-[#1DB954] rounded-full"
-                      style={{
-                        width: `${(currentTime / duration) * 100}%`,
-                      }}
-                    />
-                  </View>
-                  <View className="flex-row justify-between mt-2">
-                    <Text className="text-xs text-gray-400">{formatTime(currentTime)}</Text>
-                    <Text className="text-xs text-gray-400">{formatTime(duration)}</Text>
-                  </View>
-                </View>
-
-                {/* Controls */}
-                <View className="flex-row items-center justify-between px-8 mb-8">
-                  <TouchableOpacity onPress={() => setIsShuffle(!isShuffle)}>
-                    <Ionicons
-                      name="shuffle"
-                      size={24}
-                      color={isShuffle ? "#1DB954" : "#FFF"}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={skipBackward}>
-                    <Ionicons name="play-skip-back" size={24} color="#FFF" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    className="w-16 h-16 rounded-full bg-white justify-center items-center"
-                    onPress={togglePlayPause}
-                    disabled={isLoading}
-                  >
-                    <Ionicons
-                      name={isPlaying ? "pause" : "play"}
-                      size={32}
-                      color="#000"
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={skipForward}>
-                    <Ionicons name="play-skip-forward" size={24} color="#FFF" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={toggleRepeat}>
-                    <Ionicons
-                      name="repeat"
-                      size={24}
-                      color={isRepeat ? "#1DB954" : "#FFF"}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Volume Control */}
-                <View className="px-8">
-                  <View className="flex-row items-center mb-20">
-                    <TouchableOpacity onPress={toggleMute} className="mr-4">
-                      <Ionicons
-                        name={isMuted ? "volume-mute" : "volume-high"}
-                        size={24}
-                        color="#FFF"
-                      />
-                    </TouchableOpacity>
-                    <Slider
-                      style={{ flex: 1 }}
-                      minimumValue={0}
-                      maximumValue={1}
-                      value={volume}
-                      onValueChange={handleVolumeChange}
-                      minimumTrackTintColor="#1DB954"
-                      maximumTrackTintColor="#666"
-                      thumbTintColor="#FFF"
-                    />
-                  </View>
-                </View>
-              </View>
-            </View>
-          )}
-        </Modal>
+        {/* Add the mini player */}
+        {renderMiniPlayer()}
       </View>
     </SafeAreaView>
   );
