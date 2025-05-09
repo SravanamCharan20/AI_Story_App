@@ -1,13 +1,17 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useAudioPlayer } from '../context/AudioPlayerContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import tw from 'twrnc';
 
 export default function MiniPlayer() {
   const router = useRouter();
   const pathname = usePathname();
   const { currentStory, isPlaying, togglePlayPause, closePlayer, sound } = useAudioPlayer();
+  const animatedValue = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let statusListener;
@@ -25,10 +29,18 @@ export default function MiniPlayer() {
     };
   }, [sound]);
 
+  useEffect(() => {
+    Animated.spring(animatedValue, {
+      toValue: currentStory ? 1 : 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start();
+  }, [currentStory]);
+
   if (!currentStory) return null;
 
   const handlePress = () => {
-    // Only navigate if we're not already on the story detail page
     if (!pathname.includes('/story-detail')) {
       router.push({
         pathname: '/story-detail',
@@ -41,90 +53,54 @@ export default function MiniPlayer() {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.content}
-        onPress={handlePress}
-        activeOpacity={0.7}
+    <Animated.View style={[tw`absolute bottom-0 left-0 right-0 rounded-t-3xl overflow-hidden shadow-xl`, {
+        transform: [{
+          translateY: animatedValue.interpolate({
+            inputRange: [0, 1],
+            outputRange: [100, 0]
+          })
+        }],
+        opacity: animatedValue
+      }]}>
+      <LinearGradient
+        colors={['rgba(0, 0, 0, 0.7)', 'rgba(0, 0, 0, 0.5)']}
+        style={tw`pb-[${Platform.OS === 'ios' ? 6 : 1}]`}
       >
-        <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>
-            {currentStory.title}
-          </Text>
-          <Text style={styles.narrator} numberOfLines={1}>
-            {currentStory.author}
-          </Text>
-        </View>
-        <View style={styles.controls}>
+        <BlurView intensity={100} tint="dark" style={tw`flex-1 bg-black/30`}>
           <TouchableOpacity 
-            onPress={togglePlayPause}
-            style={styles.playButton}
+            style={tw`flex-row items-center justify-between px-4 py-3 active:opacity-70`}
+            onPress={handlePress}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={24}
-              color="#FFF"
-            />
+            <View style={tw`flex-1 mr-4`}>
+              <Text style={tw`text-white text-base font-semibold ${Platform.OS === 'ios' ? 'font-helvetica' : 'font-roboto'} mb-1`} numberOfLines={1}>
+                {currentStory.title}
+              </Text>
+              <Text style={tw`text-gray-400 text-xs font-normal opacity-90`} numberOfLines={1}>
+                {currentStory.author}
+              </Text>
+            </View>
+            <View style={tw`flex-row items-center`}>
+              <TouchableOpacity 
+                onPress={togglePlayPause}
+                style={tw`w-10 h-10 rounded-full bg-green-500 justify-center items-center mr-3 shadow-md`}
+              >
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={24}
+                  color="#FFF"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={closePlayer}
+                style={tw`w-8 h-8 rounded-full bg-white/20 justify-center items-center`}
+              >
+                <Ionicons name="close" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={closePlayer}
-            style={styles.closeButton}
-          >
-            <Ionicons name="close" size={24} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    </View>
+        </BlurView>
+      </LinearGradient>
+    </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#282828',
-    borderTopWidth: 1,
-    borderTopColor: '#404040',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  info: {
-    flex: 1,
-    marginRight: 16,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  narrator: {
-    color: '#B3B3B3',
-    fontSize: 14,
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1DB954',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#404040',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-}); 

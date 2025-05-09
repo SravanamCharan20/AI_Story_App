@@ -1,16 +1,19 @@
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Animated, PanResponder } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Animated, PanResponder, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect, useRef } from 'react';
+import { useLocalSearchParams, useRouter, usePathname } from 'expo-router';
 import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { useAudioPlayer } from './context/AudioPlayerContext';
-import MiniPlayer from './components/MiniPlayer';
+import tw from 'twrnc';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function StoryDetail() {
-  const { storyId, story: storyString } = useLocalSearchParams();
+  const { storyId, story: storyString, fromMiniPlayer } = useLocalSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { currentStory, isPlaying: contextIsPlaying, loadAndPlayStory, togglePlayPause: contextTogglePlayPause, sound: contextSound } = useAudioPlayer();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -23,12 +26,13 @@ export default function StoryDetail() {
   const animatedValue = useRef(new Animated.Value(0)).current;
   const progressBarWidth = useRef(0);
   const wasPlayingBeforeDrag = useRef(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(fromMiniPlayer === 'true' ? 300 : 0)).current;
 
-  // Parse the story data
   const story = JSON.parse(storyString);
+  const isStoryDetail = pathname.includes('/story-detail');
 
   useEffect(() => {
-    // Initialize audio mode
     Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       playsInSilentModeIOS: true,
@@ -36,7 +40,6 @@ export default function StoryDetail() {
       shouldDuckAndroid: true,
     });
 
-    // Set initial state based on context
     if (currentStory?.id === story.id && contextSound) {
       setIsPlaying(contextIsPlaying);
       setupAudioListeners(contextSound);
@@ -49,15 +52,24 @@ export default function StoryDetail() {
     };
   }, [contextSound]);
 
-  // Update local playing state when context changes
   useEffect(() => {
     if (currentStory?.id === story.id) {
       setIsPlaying(contextIsPlaying);
     }
   }, [contextIsPlaying]);
 
+  useEffect(() => {
+    if (fromMiniPlayer === 'true') {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [fromMiniPlayer]);
+
   const setupAudioListeners = (audioSound) => {
-    // Get initial duration and position
     audioSound.getStatusAsync().then(status => {
       if (status.isLoaded) {
         setDuration(status.durationMillis / 1000);
@@ -66,7 +78,6 @@ export default function StoryDetail() {
       }
     });
 
-    // Set up progress tracking with more frequent updates
     if (timeUpdateInterval.current) {
       clearInterval(timeUpdateInterval.current);
     }
@@ -78,11 +89,10 @@ export default function StoryDetail() {
           const currentPosition = status.positionMillis;
           const totalDuration = status.durationMillis;
           const progress = currentPosition / totalDuration;
-          
+
           setCurrentTime(currentPosition / 1000);
           animatedValue.setValue(progress);
 
-          // Check if audio has completed
           if (currentPosition >= totalDuration) {
             setIsPlaying(false);
             setCurrentTime(0);
@@ -95,7 +105,6 @@ export default function StoryDetail() {
       }
     }, 16);
 
-    // Set up playback status listener
     audioSound.setOnPlaybackStatusUpdate(status => {
       if (status.isLoaded) {
         if (status.didJustFinish) {
@@ -116,8 +125,6 @@ export default function StoryDetail() {
     try {
       loadAndPlayStory(story);
       setIsPlaying(true);
-      
-      // Ensure we set up listeners after loading the story
       if (contextSound) {
         setupAudioListeners(contextSound);
       }
@@ -138,6 +145,10 @@ export default function StoryDetail() {
       await contextSound.playAsync();
     }
     contextTogglePlayPause();
+    Animated.spring(fadeAnim, {
+      toValue: isPlaying ? 0.7 : 1,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleVolumeChange = async (value) => {
@@ -225,7 +236,7 @@ export default function StoryDetail() {
         const newTime = progress * duration;
         setCurrentTime(newTime);
         animatedValue.setValue(progress);
-        
+
         if (contextSound) {
           const status = await contextSound.getStatusAsync();
           if (status.isLoaded) {
@@ -233,7 +244,7 @@ export default function StoryDetail() {
             await contextSound.setPositionAsync(newPosition);
           }
         }
-        
+
         setIsDragging(false);
         if (wasPlayingBeforeDrag.current) {
           contextTogglePlayPause();
@@ -249,174 +260,190 @@ export default function StoryDetail() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <View className="flex-1">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-4 py-4">
-          <TouchableOpacity onPress={() => router.push('/(tabs)/stories')}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text className="text-white text-lg font-semibold">Story Details</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        <ScrollView className="flex-1">
-          {/* Story Content */}
-          <View className="px-4 py-6">
-            <View className="items-center mb-6">
-              <View className="w-32 h-32 rounded-lg bg-white/10 justify-center items-center mb-4">
-                <Ionicons 
-                  name={
-                    story.mood === 'happy' ? 'sunny' :
-                    story.mood === 'sad' ? 'sad' :
-                    story.mood === 'angry' ? 'flame' :
-                    story.mood === 'joy' ? 'happy' :
-                    story.mood === 'surprise' ? 'alert' :
-                    story.mood === 'calm' ? 'water' :
-                    story.mood === 'mysterious' ? 'moon' : 'flash'
-                  }
-                  size={48} 
-                  color="#FFF" 
-                />
-              </View>
-              <Text className="text-2xl font-bold text-white text-center mb-2">{story.title}</Text>
-              <Text className="text-base text-gray-400 text-center">{story.author}</Text>
-            </View>
-
-            {/* Tags */}
-            {story.tags && story.tags.length > 0 && (
-              <View className="flex-row flex-wrap gap-2 mb-6">
-                {story.tags.map((tag, index) => (
-                  <View key={index} className="px-3 py-1 rounded-full bg-white/10">
-                    <Text className="text-sm text-white">{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Story Info */}
-            <View className="bg-white/5 rounded-lg p-4 mb-6">
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-gray-400">Duration</Text>
-                <Text className="text-white">{story.duration}</Text>
-              </View>
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-gray-400">Language</Text>
-                <Text className="text-white">{story.language}</Text>
-              </View>
-              <View className="flex-row justify-between items-center mb-4">
-                <Text className="text-gray-400">Age Category</Text>
-                <Text className="text-white">{story.ageCategory}</Text>
-              </View>
-              <View className="flex-row justify-between items-center">
-                <Text className="text-gray-400">Genre</Text>
-                <Text className="text-white">{story.category}</Text>
-              </View>
-            </View>
-
-            {/* Description */}
-            {story.description && (
-              <View className="mb-6">
-                <Text className="text-lg font-semibold text-white mb-2">Description</Text>
-                <Text className="text-gray-400">{story.description}</Text>
-              </View>
-            )}
-
-            {/* Player Controls */}
-            {currentStory?.id === story.id && (
-              <View className="mb-6">
-                {/* Progress Bar */}
-                <View 
-                  className="w-full h-1 bg-white/20 rounded-full overflow-hidden mb-2"
-                  onLayout={(e) => {
-                    progressBarWidth.current = e.nativeEvent.layout.width;
-                  }}
-                  {...panResponder.panHandlers}
-                >
-                  <Animated.View
-                    className="h-full bg-[#1DB954] rounded-full"
-                    style={{
-                      width: animatedValue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                    }}
-                  />
-                </View>
-
-                {/* Time Display */}
-                <View className="flex-row justify-between mb-4">
-                  <Text className="text-xs text-gray-400">{formatTime(currentTime)}</Text>
-                  <Text className="text-xs text-gray-400">{formatTime(duration)}</Text>
-                </View>
-
-                {/* Playback Controls */}
-                <View className="flex-row items-center justify-between mb-6">
-                  <TouchableOpacity 
-                    onPress={skipBackward}
-                    className="w-12 h-12 rounded-full bg-white/10 justify-center items-center"
-                  >
-                    <Ionicons name="play-skip-back" size={24} color="#FFF" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    className="w-16 h-16 rounded-full bg-[#1DB954] justify-center items-center"
-                    onPress={togglePlayPause}
-                  >
-                    <Ionicons
-                      name={isPlaying ? "pause" : "play"}
-                      size={32}
-                      color="#FFF"
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    onPress={skipForward}
-                    className="w-12 h-12 rounded-full bg-white/10 justify-center items-center"
-                  >
-                    <Ionicons name="play-skip-forward" size={24} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Volume Control */}
-                <View className="flex-row items-center">
-                  <TouchableOpacity 
-                    onPress={toggleMute} 
-                    className="w-12 h-12 rounded-full bg-white/10 justify-center items-center mr-4"
-                  >
-                    <Ionicons
-                      name={isMuted ? "volume-mute" : "volume-high"}
-                      size={24}
-                      color="#FFF"
-                    />
-                  </TouchableOpacity>
-                  <Slider
-                    style={{ flex: 1 }}
-                    minimumValue={0}
-                    maximumValue={1}
-                    value={volume}
-                    onValueChange={handleVolumeChange}
-                    minimumTrackTintColor="#1DB954"
-                    maximumTrackTintColor="#666"
-                    thumbTintColor="#FFF"
-                  />
-                </View>
-              </View>
-            )}
-          </View>
-        </ScrollView>
-
-        {/* Play Button (if not currently playing this story) */}
-        {currentStory?.id !== story.id && (
-          <View className="px-4 py-4">
-            <TouchableOpacity
-              className="w-full h-14 bg-[#1DB954] rounded-full justify-center items-center flex-row"
-              onPress={handlePlayAudio}
-            >
-              <Ionicons name="play" size={24} color="#FFF" />
-              <Text className="text-white font-semibold ml-2">Play Story</Text>
+    <SafeAreaView style={tw`flex-1 bg-transparent`}>
+      <LinearGradient
+        colors={['rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.9)']}
+        style={tw`absolute inset-0`}
+      />
+      <BlurView intensity={100} tint="dark" style={tw`flex-1 bg-black/30`}>
+        <Animated.View
+          style={[tw`flex-1`, {
+            transform: [{ translateY: slideAnim }],
+          }]}
+        >
+          {/* Header */}
+          <View style={tw`flex-row items-center justify-between px-4 py-4`}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/stories')}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
             </TouchableOpacity>
+            <Text style={tw`text-white text-lg font-semibold ${Platform.OS === 'ios' ? 'font-helvetica' : 'font-roboto'}`}>
+              Story Details
+            </Text>
+            <View style={tw`w-6`} />
           </View>
-        )}
-      </View>
+
+          <ScrollView
+            style={tw`flex-1`}
+            contentContainerStyle={tw`${isStoryDetail ? (currentStory?.id !== story.id ? 'pb-28' : 'pb-20') : 'pb-4'}`} // Extra padding for MiniPlayer and Play button
+          >
+            {/* Story Content */}
+            <View style={tw`px-4 py-6`}>
+              <View style={tw`items-center mb-6`}>
+                <View style={tw`w-24 h-24 rounded-xl bg-white/10 justify-center items-center mb-4`}>
+                  <Ionicons
+                    name={
+                      story.mood === 'happy' ? 'sunny' :
+                      story.mood === 'sad' ? 'sad' :
+                      story.mood === 'angry' ? 'flame' :
+                      story.mood === 'joy' ? 'happy' :
+                      story.mood === 'surprise' ? 'alert' :
+                      story.mood === 'calm' ? 'water' :
+                      story.mood === 'mysterious' ? 'moon' : 'flash'
+                    }
+                    size={40}
+                    color="#FFF"
+                  />
+                </View>
+                <Text style={tw`text-2xl font-bold text-white text-center mb-2 ${Platform.OS === 'ios' ? 'font-helvetica' : 'font-roboto'}`}>
+                  {story.title}
+                </Text>
+                <Text style={tw`text-base text-gray-400 text-center`}>{story.author}</Text>
+              </View>
+
+              {/* Tags */}
+              {story.tags && story.tags.length > 0 && (
+                <View style={tw`flex-row flex-wrap gap-2 mb-6`}>
+                  {story.tags.map((tag, index) => (
+                    <View key={index} style={tw`px-3 py-1 rounded-full bg-white/10`}>
+                      <Text style={tw`text-sm text-white`}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Story Info */}
+              <View style={tw`bg-white/5 rounded-lg p-4 mb-6`}>
+                <View style={tw`flex-row justify-between items-center mb-4`}>
+                  <Text style={tw`text-gray-400`}>Duration</Text>
+                  <Text style={tw`text-white`}>{story.duration}</Text>
+                </View>
+                <View style={tw`flex-row justify-between items-center mb-4`}>
+                  <Text style={tw`text-gray-400`}>Language</Text>
+                  <Text style={tw`text-white`}>{story.language}</Text>
+                </View>
+                <View style={tw`flex-row justify-between items-center mb-4`}>
+                  <Text style={tw`text-gray-400`}>Age Category</Text>
+                  <Text style={tw`text-white`}>{story.ageCategory}</Text>
+                </View>
+                <View style={tw`flex-row justify-between items-center`}>
+                  <Text style={tw`text-gray-400`}>Genre</Text>
+                  <Text style={tw`text-white`}>{story.category}</Text>
+                </View>
+              </View>
+
+              {/* Description */}
+              {story.description && (
+                <View style={tw`mb-6`}>
+                  <Text style={tw`text-lg font-semibold text-white mb-2`}>Description</Text>
+                  <Text style={tw`text-gray-400`}>{story.description}</Text>
+                </View>
+              )}
+
+              {/* Player Controls */}
+              {currentStory?.id === story.id && (
+                <View style={tw`mb-6`}>
+                  {/* Progress Bar */}
+                  <View
+                    style={tw`w-full h-1.5 bg-white/20 rounded-full overflow-hidden mb-2`}
+                    onLayout={(e) => {
+                      progressBarWidth.current = e.nativeEvent.layout.width;
+                    }}
+                    {...panResponder.panHandlers}
+                  >
+                    <Animated.View
+                      style={[tw`h-full bg-[#1DB954] rounded-full`, {
+                        width: animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0%', '100%'],
+                        }),
+                      }]}
+                    />
+                  </View>
+
+                  {/* Time Display */}
+                  <View style={tw`flex-row justify-between mb-4`}>
+                    <Text style={tw`text-xs text-gray-400`}>{formatTime(currentTime)}</Text>
+                    <Text style={tw`text-xs text-gray-400`}>{formatTime(duration)}</Text>
+                  </View>
+
+                  {/* Playback Controls */}
+                  <Animated.View style={[tw`flex-row items-center justify-center mb-6`, { opacity: fadeAnim }]}>
+                    <TouchableOpacity
+                      onPress={skipBackward}
+                      style={tw`w-10 h-10 rounded-full bg-white/10 justify-center items-center mx-4`}
+                    >
+                      <Ionicons name="play-skip-back" size={20} color="#FFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={tw`w-14 h-14 rounded-full bg-[#1DB954] justify-center items-center mx-4`}
+                      onPress={togglePlayPause}
+                    >
+                      <Ionicons
+                        name={isPlaying ? "pause" : "play"}
+                        size={28}
+                        color="#FFF"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={skipForward}
+                      style={tw`w-10 h-10 rounded-full bg-white/10 justify-center items-center mx-4`}
+                    >
+                      <Ionicons name="play-skip-forward" size={20} color="#FFF" />
+                    </TouchableOpacity>
+                  </Animated.View>
+
+                  {/* Volume Control */}
+                  <View style={tw`flex-row items-center px-4`}>
+                    <TouchableOpacity
+                      onPress={toggleMute}
+                      style={tw`w-10 h-10 rounded-full bg-white/10 justify-center items-center mr-3`}
+                    >
+                      <Ionicons
+                        name={isMuted ? "volume-mute" : "volume-high"}
+                        size={20}
+                        color="#FFF"
+                      />
+                    </TouchableOpacity>
+                    <Slider
+                      style={tw`flex-1`}
+                      minimumValue={0}
+                      maximumValue={1}
+                      value={volume}
+                      onValueChange={handleVolumeChange}
+                      minimumTrackTintColor="#1DB954"
+                      maximumTrackTintColor="#666"
+                      thumbTintColor="#FFF"
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+
+          {/* Play Button (if not currently playing this story) */}
+          {currentStory?.id !== story.id && (
+            <View style={tw`px-4 py-4 bg-black/20 absolute left-0 right-0 ${currentStory ? 'bottom-[80px]' : 'bottom-0'}`}>
+              <TouchableOpacity
+                style={tw`w-full h-12 bg-[#1DB954] rounded-full justify-center items-center flex-row`}
+                onPress={handlePlayAudio}
+              >
+                <Ionicons name="play" size={20} color="#FFF" />
+                <Text style={tw`text-white font-semibold ml-2 text-base`}>Play Story</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Animated.View>
+      </BlurView>
     </SafeAreaView>
   );
-} 
+}
