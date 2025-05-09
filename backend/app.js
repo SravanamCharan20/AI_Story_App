@@ -14,30 +14,8 @@ import Story from './models/Story.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure Cloudinary
-cloudinary.v2.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
 
-// Function to upload files to Cloudinary
-const uploadToCloudinary = async (file, folder) => {
-  try {
-    // Convert buffer to base64
-    const base64Data = file.buffer.toString('base64');
-    const dataUri = `data:${file.mimetype};base64,${base64Data}`;
 
-    const result = await cloudinary.v2.uploader.upload(dataUri, {
-      folder: folder,
-      resource_type: 'auto'
-    });
-    return result;
-  } catch (error) {
-    console.error('Cloudinary upload error:', error);
-    throw new Error('Failed to upload file to Cloudinary');
-  }
-};
 
 const app = express();
 config();
@@ -81,78 +59,6 @@ app.use(cookieParser());
 app.use('/api/user', userRoutes);
 app.use('/api/stories', storyRoutes);
 
-app.post('/api/stories/generate', upload.fields([
-  { name: 'audio', maxCount: 1 },
-  { name: 'story', maxCount: 1 }
-]), async (req, res) => {
-  try {
-    const { title, narrator, language, ageCategory, genre, mood, tags, hasPermission, metadata, userId } = req.body;
-    const audioFile = req.files['audio']?.[0];
-    const storyFile = req.files['story']?.[0];
-
-    // Upload files to Cloudinary
-    const [audioResult, storyResult] = await Promise.all([
-      uploadToCloudinary(audioFile, 'stories/audio'),
-      uploadToCloudinary(storyFile, 'stories/documents')
-    ]);
-
-    // Parse tags and metadata
-    let parsedTags = [];
-    let parsedMetadata = {};
-    try {
-      parsedTags = JSON.parse(tags || '[]');
-      parsedMetadata = JSON.parse(metadata || '{}');
-    } catch (error) {
-      console.error('Error parsing tags or metadata:', error);
-      parsedTags = [];
-      parsedMetadata = {};
-    }
-
-    // Create story in database
-    const story = new Story({
-      title,
-      narrator,
-      language,
-      ageCategory,
-      genre,
-      mood,
-      tags: parsedTags,
-      hasPermission: hasPermission === 'true',
-      userId,
-      audioUrl: audioResult.secure_url,
-      storyUrl: storyResult.secure_url,
-      metadata: parsedMetadata
-    });
-
-    await story.save();
-
-    res.status(200).json({
-      message: "Story generated successfully",
-      story: {
-        id: story._id,
-        title: story.title,
-        narrator: story.narrator,
-        language: story.language,
-        ageCategory: story.ageCategory,
-        genre: story.genre,
-        mood: story.mood,
-        tags: story.tags,
-        audioUrl: story.audioUrl,
-        storyUrl: story.storyUrl,
-        metadata: story.metadata,
-        createdAt: story.createdAt
-      }
-    });
-  } catch (error) {
-    console.error('Story generation error:', error);
-    res.status(500).json({ 
-      message: "Failed to generate story",
-      error: error.message 
-    });
-  }
-});
-
-// Get user's stories
 app.get('/api/stories/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
