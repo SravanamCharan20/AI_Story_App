@@ -115,11 +115,15 @@ export default function Profile() {
               <Text className="text-2xl font-bold text-white">Profile</Text>
               <Text className="text-sm text-gray-400 mt-1">Your story journey</Text>
             </View>
-            <TouchableOpacity 
-              className="w-10 h-10 rounded-full bg-white/10 justify-center items-center"
+            <TouchableOpacity
+              className="w-30 p-3 h-13 rounded-full border border-red-500 bg-red-500/10 justify-center items-center"
               onPress={handleLogout}
+              accessibilityLabel="Log Out"
             >
-              <Ionicons name="log-out-outline" size={20} color="#FFF" />
+              <View className="flex-row items-center space-x-1">
+                <Text className="text-red-500">LOGOUT</Text>
+                <Ionicons name="log-out-outline" size={20} color="red" />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -130,14 +134,14 @@ export default function Profile() {
             <View className="w-24 h-24 rounded-full bg-[#1F1F1F] justify-center items-center mb-4">
               <Ionicons name="person" size={40} color="#1DB954" />
             </View>
-            <Text className="text-xl font-bold text-white mb-1">
+            <Text className="text-3xl font-bold text-white mb-1">
               {userData?.name || 'User'}
             </Text>
-            <Text className="text-gray-400 mb-4">
+            <Text className="text-gray-400 text-xl mb-4">
               {userData?.email || 'user@example.com'}
             </Text>
             <TouchableOpacity 
-              className="w-full py-4 rounded-xl items-center bg-[#1DB954]"
+              className="w-full py-4 rounded-full items-center border border-white/40 bg-black/20"
               onPress={handleCreateStory}
             >
               <Text className="text-white font-semibold text-lg">Create New Story</Text>
@@ -146,7 +150,7 @@ export default function Profile() {
         </View>
 
         {/* Stats Section */}
-        <View className="px-4 mb-6">
+        {/* <View className="px-4 mb-6">
           <Text className="text-white text-lg font-semibold mb-4">Your Stats</Text>
           <View className="bg-[#282828] rounded-xl p-4">
             <View className="flex-row flex-wrap justify-between">
@@ -168,9 +172,9 @@ export default function Profile() {
               </View>
             </View>
           </View>
-        </View>
+        </View> */}
 
-        {/* Settings Section */}
+        {/* Settings Section
         <View className="px-4 mb-6">
           <Text className="text-white text-lg font-semibold mb-4">Settings</Text>
           <View className="bg-[#282828] rounded-xl overflow-hidden">
@@ -190,7 +194,7 @@ export default function Profile() {
               <Ionicons name="chevron-forward" size={20} color="#666" />
             </TouchableOpacity>
           </View>
-        </View>
+        </View> */}
       </ScrollView>
     </SafeAreaView>
   );

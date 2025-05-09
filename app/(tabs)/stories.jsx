@@ -53,7 +53,6 @@ export default function Stories() {
   const router = useRouter();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [selectedStory, setSelectedStory] = useState(null);
   const [showPlayer, setShowPlayer] = useState(false);
   const [allStories, setAllStories] = useState([]);
@@ -62,26 +61,15 @@ export default function Stories() {
   const soundObject = useRef(null);
   const animatedValue = useRef(new Animated.Value(0)).current;
   const timeUpdateInterval = useRef(null);
-  const isFocused = useIsFocused();
   const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
-  const [isShuffle, setIsShuffle] = useState(false);
-  const previousVolume = useRef(1.0);
-  const [isDragging, setIsDragging] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [showTimePreview, setShowTimePreview] = useState(false);
-  const [previewTime, setPreviewTime] = useState(0);
   const progressBarWidth = useRef(0);
-  const wasPlayingBeforeDrag = useRef(false);
-  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const playheadScale = useRef(new Animated.Value(1)).current;
   const playheadOpacity = useRef(new Animated.Value(0.8)).current;
   const cardScale = useRef(new Animated.Value(1)).current;
   const [sortBy, setSortBy] = useState('newest');
-  const [viewMode, setViewMode] = useState('grid');
-  const filterAnimation = useRef(new Animated.Value(0)).current;
-  const searchBarWidth = useRef(new Animated.Value(0)).current;
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedMood, setSelectedMood] = useState('All');
@@ -91,7 +79,6 @@ export default function Stories() {
   const [stories, setStories] = useState([]);
   const [error, setError] = useState(null);
   const [sound, setSound] = useState(null);
-  const [currentPlayingId, setCurrentPlayingId] = useState(null);
   const { currentStory, isPlaying: audioPlayerIsPlaying, togglePlayPause, loadAndPlayStory } = useAudioPlayer();
 
   const defaultStories = [
@@ -149,7 +136,7 @@ export default function Stories() {
   const moodFilters = [
     { id: 0, title: 'All', icon: 'apps' },
     { id: 1, title: 'happy', icon: 'sunny' },
-    { id: 2, title: 'calm', icon: 'water' },
+    { id: 2, title: 'sad', icon: 'water' },
     { id: 3, title: 'mysterious', icon: 'moon' },
     { id: 4, title: 'exciting', icon: 'flash' },
   ];
@@ -370,140 +357,6 @@ export default function Stories() {
     }
   };
 
-  const skipBackward = async () => {
-    try {
-      const newTime = Math.max(0, currentTime - 10);
-      await soundObject.current.setPositionAsync(newTime * 1000);
-      setCurrentTime(newTime);
-      animatedValue.setValue(newTime / duration);
-    } catch (error) {
-      console.log('Error skipping backward:', error);
-    }
-  };
-
-  const skipForward = async () => {
-    try {
-      const newTime = Math.min(duration, currentTime + 10);
-      await soundObject.current.setPositionAsync(newTime * 1000);
-      setCurrentTime(newTime);
-      animatedValue.setValue(newTime / duration);
-    } catch (error) {
-      console.log('Error skipping forward:', error);
-    }
-  };
-
-  const startProgressAnimation = () => {
-    Animated.timing(animatedValue, {
-      toValue: 1,
-      duration: (duration - currentTime) * 1000,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
-  const featuredStories = [
-    {
-      id: 1,
-      title: "The Magical Garden",
-      author: "Sarah Smith",
-      duration: "8 min",
-      rating: "4.9",
-      icon: "flower"
-    },
-    {
-      id: 2,
-      title: "Ocean Adventures",
-      author: "Mike Johnson",
-      duration: "12 min",
-      rating: "4.8",
-      icon: "boat"
-    },
-    {
-      id: 3,
-      title: "Sky Pirates",
-      author: "Emma Davis",
-      duration: "10 min",
-      rating: "4.7",
-      icon: "airplane"
-    },
-  ];
-
-  // Add this function to handle volume changes
-  const handleVolumeChange = async (value) => {
-    try {
-      if (soundObject.current) {
-        await soundObject.current.setVolumeAsync(value);
-        setVolume(value);
-        if (value > 0) setIsMuted(false);
-        if (value === 0) setIsMuted(true);
-      }
-    } catch (error) {
-      console.log('Error changing volume:', error);
-    }
-  };
-
-  // Add function to toggle mute
-  const toggleMute = async () => {
-    try {
-      if (soundObject.current) {
-        if (isMuted) {
-          await soundObject.current.setVolumeAsync(previousVolume.current);
-          setVolume(previousVolume.current);
-        } else {
-          previousVolume.current = volume;
-          await soundObject.current.setVolumeAsync(0);
-          setVolume(0);
-        }
-        setIsMuted(!isMuted);
-      }
-    } catch (error) {
-      console.log('Error toggling mute:', error);
-    }
-  };
-
-  // Add function to handle repeat mode
-  const toggleRepeat = () => {
-    setIsRepeat(!isRepeat);
-    if (soundObject.current) {
-      soundObject.current.setIsLoopingAsync(!isRepeat);
-    }
-  };
-
-  // Add PanResponder for progress bar
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (evt) => {
-        setIsDragging(true);
-        setShowTimePreview(true);
-        wasPlayingBeforeDrag.current = isPlaying;
-        if (isPlaying) {
-          soundObject.current?.pauseAsync();
-        }
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        const progress = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth.current));
-        const previewTimeValue = progress * duration;
-        setPreviewTime(previewTimeValue);
-        setCurrentTime(previewTimeValue);
-      },
-      onPanResponderRelease: async (evt, gestureState) => {
-        const progress = Math.max(0, Math.min(1, gestureState.moveX / progressBarWidth.current));
-        await handleSeek(progress);
-        setIsDragging(false);
-        setShowTimePreview(false);
-        if (wasPlayingBeforeDrag.current) {
-          soundObject.current?.playAsync();
-        }
-      },
-    })
-  ).current;
 
   // Enhanced handleSeek function
   const handleSeek = async (value) => {
@@ -521,101 +374,6 @@ export default function Stories() {
     }
   };
 
-  // Add function to handle double tap seeking
-  const handleDoubleTap = async (direction) => {
-    try {
-      const skipAmount = 10; // seconds
-      const newTime = direction === 'forward' 
-        ? Math.min(duration, currentTime + skipAmount)
-        : Math.max(0, currentTime - skipAmount);
-      
-      await handleSeek(newTime / duration);
-      
-      // Show visual feedback
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true
-        })
-      ]).start();
-    } catch (error) {
-      console.log('Error handling double tap:', error);
-    }
-  };
-
-  // Add this after existing panResponder
-  const playheadPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        setIsDraggingPlayhead(true);
-        Animated.parallel([
-          Animated.spring(playheadScale, {
-            toValue: 1.5,
-            useNativeDriver: true,
-          }),
-          Animated.spring(playheadOpacity, {
-            toValue: 1,
-            useNativeDriver: true,
-          })
-        ]).start();
-        if (isPlaying) {
-          soundObject.current?.pauseAsync();
-        }
-      },
-      onPanResponderMove: (_, gestureState) => {
-        const progress = Math.max(0, Math.min(1, (gestureState.moveX - 30) / (progressBarWidth.current - 60)));
-        const newTime = progress * duration;
-        setCurrentTime(newTime);
-      },
-      onPanResponderRelease: async (_, gestureState) => {
-        const progress = Math.max(0, Math.min(1, (gestureState.moveX - 30) / (progressBarWidth.current - 60)));
-        await handleSeek(progress);
-        setIsDraggingPlayhead(false);
-        Animated.parallel([
-          Animated.spring(playheadScale, {
-            toValue: 1,
-            useNativeDriver: true,
-          }),
-          Animated.spring(playheadOpacity, {
-            toValue: 0.8,
-            useNativeDriver: true,
-          })
-        ]).start();
-        if (isPlaying) {
-          soundObject.current?.playAsync();
-        }
-      }
-    })
-  ).current;
-
-  // Update the story card press handler
-  const handleCardPress = (story) => {
-    if (!story || !story.id) {
-      console.error('Invalid story data:', story);
-      return;
-    }
-
-    Animated.sequence([
-      Animated.timing(cardScale, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      })
-    ]).start(() => handleViewStory(story));
-  };
 
   // Add this function for sorting
   const sortStories = (stories) => {
@@ -641,18 +399,6 @@ export default function Stories() {
     return 'evening';
   };
 
-  const initializeAudio = async () => {
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-      });
-    } catch (error) {
-      console.log('Error initializing audio:', error);
-    }
-  };
 
   const cleanupAudio = async () => {
     try {
@@ -668,22 +414,6 @@ export default function Stories() {
     }
   };
 
-  const updatePlaybackTime = async () => {
-    if (soundObject.current) {
-      try {
-        const status = await soundObject.current.getStatusAsync();
-        if (status.isLoaded) {
-          setCurrentTime(status.positionMillis / 1000);
-          
-          if (status.didJustFinish && !isRepeat) {
-            await handleClose();
-          }
-        }
-      } catch (error) {
-        console.log('Error updating playback time:', error);
-      }
-    }
-  };
 
   const renderMiniPlayer = () => {
     if (!currentStory) return null;
@@ -752,9 +482,9 @@ export default function Stories() {
                 <Text className="text-sm text-gray-400 mt-1">Let's find your next story</Text>
               </View>
               <View className="flex-row items-center gap-3">
-                <TouchableOpacity className="w-20 h-10 rounded-full bg-white/10 justify-center items-center flex-row" onPress={() => router.push('/create')}>
-                  <Ionicons name="add" size={20} color="#fff" className="mr-2" />
-                  <Text className="text-sm font-medium text-white">Create</Text>
+                <TouchableOpacity className="w-30 p-3 h-13 rounded-full border border-green-500 bg-green-500/10 justify-center items-center flex-row" onPress={() => router.push('/create')}>
+                  <Ionicons name="add" size={20} color="green" className="mr-2" />
+                  <Text className="text-green-500">CREATE</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -885,8 +615,8 @@ export default function Stories() {
           </View>
         </ScrollView>
 
-        {/* Add the mini player */}
-        {renderMiniPlayer()}
+        {/* Add the mini player
+        {renderMiniPlayer()} */}
       </View>
     </SafeAreaView>
   );

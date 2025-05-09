@@ -53,7 +53,7 @@ export default function MiniPlayer() {
   };
 
   return (
-    <Animated.View style={[tw`absolute bottom-0 left-0 right-0 rounded-t-3xl overflow-hidden shadow-xl`, {
+    <Animated.View style={[tw`absolute bottom-0 left-1 right-1 rounded-t-3xl border border-white/40 overflow-hidden shadow-xl`, {
         transform: [{
           translateY: animatedValue.interpolate({
             inputRange: [0, 1],
