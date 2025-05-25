@@ -1,14 +1,29 @@
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
-import { useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Image, Dimensions, Animated, Modal, ActivityIndicator, TextInput, Platform } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenWrapper from '../components/ScreenWrapper';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
+import Slider from '@react-native-community/slider';
+import { PanResponder, TouchableWithoutFeedback } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useAudioPlayer } from '../context/AudioPlayerContext';
+import tw from 'twrnc';
+import { BlurView } from 'expo-blur';
+import { useAuth } from '../context/AuthContext';
+import LoginPopup from '../components/LoginPopup';
+import useLoginPopup from '../hooks/useLoginPopup';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
 
 export default function Home() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { showLoginPopup, closeLoginPopup, checkAuth } = useLoginPopup();
+  const [userData, setUserData] = useState(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -18,7 +33,94 @@ export default function Home() {
       duration: 1000,
       useNativeDriver: true,
     }).start();
+    loadUserData();
   }, []);
+
+  const loadUserData = async () => {
+    try {
+      const userDataString = await AsyncStorage.getItem('user');
+      if (userDataString) {
+        const parsedData = JSON.parse(userDataString);
+        setUserData(parsedData);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  const handleCreateStory = () => {
+    if (checkAuth()) {
+      router.push('/create-story');
+    }
+  };
+
+  const handleStoryPress = (story) => {
+    if (checkAuth()) {
+      router.push({
+        pathname: '/story-detail',
+        params: { story: JSON.stringify(story) }
+      });
+    }
+  };
+
+  const handleLogin = () => {
+    closeLoginPopup();
+    router.replace('/auth/signIn');
+  };
+
+  const handleSignup = () => {
+    closeLoginPopup();
+    router.replace('/auth/signUp');
+  };
+
+  const handleContinueBrowsing = () => {
+    closeLoginPopup();
+  };
+
+  const LoginPrompt = () => (
+    <Modal
+      visible={showLoginPopup}
+      transparent
+      animationType="fade"
+      onRequestClose={closeLoginPopup}
+    >
+      <BlurView intensity={100} tint="dark" style={tw`flex-1 bg-black/30`}>
+        <View className="flex-1 justify-center items-center px-4">
+          <View className="bg-white/10 rounded-2xl p-6 w-full max-w-sm">
+            <Text className="text-2xl font-bold text-white text-center mb-2">
+              Sign in to Create Stories
+            </Text>
+            <Text className="text-gray-400 text-center mb-6">
+              Create an account to start sharing your stories with the world
+            </Text>
+
+            <View className="space-y-4">
+              <TouchableOpacity
+                onPress={handleLogin}
+                className="w-full bg-gradient-to-r from-[#1DB954] to-[#1ed760] rounded-full py-4 items-center"
+              >
+                <Text className="text-white font-semibold text-lg">Sign In</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSignup}
+                className="w-full bg-white/10 rounded-full py-4 items-center"
+              >
+                <Text className="text-white font-semibold text-lg">Create Account</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleContinueBrowsing}
+                className="w-full py-4 items-center"
+              >
+                <Text className="text-gray-400">Continue browsing</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </BlurView>
+    </Modal>
+  );
 
   const featuredStories = [
     { id: 1, title: "The Magic Forest", age: "4-6", duration: "5 min", color: ['#FFB7B7', '#FF8C8C'] },
@@ -34,275 +136,16 @@ export default function Home() {
   ];
 
   return (
-    // <ScreenWrapper>
-    //   <ScrollView
-    //     showsVerticalScrollIndicator={false}
-    //     onScroll={Animated.event(
-    //       [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    //       { useNativeDriver: false }
-    //     )}
-    //     scrollEventThrottle={16}
-    //     contentContainerStyle={styles.scrollContent}
-    //   >
-    //     <View style={styles.header}>
-    //       <View>
-    //         <Text style={styles.greeting}>Good Morning! 👋</Text>
-    //         <Text style={styles.name}>Little Explorer</Text>
-    //       </View>
-    //       <TouchableOpacity style={styles.searchButton}>
-    //         <Ionicons name="search" size={24} color="#666" />
-    //       </TouchableOpacity>
-    //     </View>
-
-    //     <Text style={styles.sectionTitle}>Continue Reading</Text>
-        
-    //     <ScrollView
-    //       horizontal
-    //       showsHorizontalScrollIndicator={false}
-    //       contentContainerStyle={styles.featuredContainer}
-    //       decelerationRate="fast"
-    //       snapToInterval={CARD_WIDTH + 20}
-    //     >
-    //       {featuredStories.map((story, index) => (
-    //         <Animated.View
-    //           key={story.id}
-    //           style={[
-    //             styles.featuredCard,
-    //             {
-    //               opacity: fadeAnim,
-    //               transform: [
-    //                 {
-    //                   translateY: fadeAnim.interpolate({
-    //                     inputRange: [0, 1],
-    //                     outputRange: [50, 0],
-    //                   }),
-    //                 },
-    //               ],
-    //             },
-    //           ]}
-    //         >
-    //           <LinearGradient
-    //             colors={story.color}
-    //             style={styles.cardGradient}
-    //             start={{ x: 0, y: 0 }}
-    //             end={{ x: 1, y: 1 }}
-    //           >
-    //             <View style={styles.cardContent}>
-    //               <Text style={styles.cardTitle}>{story.title}</Text>
-    //               <View style={styles.cardMeta}>
-    //                 <Text style={styles.cardMetaText}>Age {story.age}</Text>
-    //                 <Text style={styles.cardMetaText}>{story.duration}</Text>
-    //               </View>
-    //               <TouchableOpacity style={styles.playButton}>
-    //                 <Ionicons name="play" size={24} color="#FF6B6B" />
-    //               </TouchableOpacity>
-    //             </View>
-    //           </LinearGradient>
-    //         </Animated.View>
-    //       ))}
-    //     </ScrollView>
-
-    //     <Text style={styles.sectionTitle}>Categories</Text>
-    //     <View style={styles.categoriesGrid}>
-    //       {categories.map((category) => (
-    //         <TouchableOpacity key={category.id} style={styles.categoryCard}>
-    //           <View style={styles.categoryIcon}>
-    //             <Ionicons name={category.icon} size={24} color="#FF6B6B" />
-    //           </View>
-    //           <Text style={styles.categoryTitle}>{category.title}</Text>
-    //         </TouchableOpacity>
-    //       ))}
-    //     </View>
-
-    //     <View style={styles.recommendedSection}>
-    //       <Text style={styles.sectionTitle}>Recommended for You</Text>
-    //       <TouchableOpacity style={styles.recommendedCard}>
-    //         <LinearGradient
-    //           colors={['#FFE5E5', '#FFD6D6']}
-    //           style={styles.recommendedGradient}
-    //         >
-    //           <View style={styles.recommendedContent}>
-    //             <Text style={styles.recommendedTitle}>New Stories Added!</Text>
-    //             <Text style={styles.recommendedSubtitle}>
-    //               Discover 5 new magical adventures
-    //             </Text>
-    //           </View>
-    //         </LinearGradient>
-    //       </TouchableOpacity>
-    //     </View>
-    //   </ScrollView>
-    // </ScreenWrapper>
-    <View style = {{flex:1, justifyContent:'center', alignItems:'center'}}>
-      <Text>Home Page</Text>
-    </View>
+    <SafeAreaView className="flex-1 bg-black ">
+            <ScrollView className="flex-1 px-4">
+              <View className='flex-row justify-between items-center'>
+                <Text className='text-white text-2xl font-bold'>Home</Text>
+                <TouchableOpacity className='bg-white/10 rounded-full p-2'>
+                  <Ionicons name="search" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+      <LoginPrompt />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  scrollContent: {
-    paddingBottom: 80,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  greeting: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 4,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1C1C1E',
-  },
-  searchButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginLeft: 20,
-    marginTop: 20,
-    marginBottom: 15,
-  },
-  featuredContainer: {
-    paddingLeft: 20,
-    paddingRight: 10,
-  },
-  featuredCard: {
-    width: CARD_WIDTH,
-    height: 180,
-    marginRight: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  cardGradient: {
-    flex: 1,
-    padding: 20,
-  },
-  cardContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFF',
-    shadowColor: 'rgba(0,0,0,0.2)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    shadowOpacity: 1,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  cardMetaText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '600',
-    opacity: 0.9,
-  },
-  playButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 10,
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
-  categoryCard: {
-    width: '48%',
-    backgroundColor: '#F2F2F7',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 15,
-    alignItems: 'center',
-  },
-  categoryIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  categoryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1C1C1E',
-  },
-  recommendedSection: {
-    padding: 20,
-  },
-  recommendedCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
-  recommendedGradient: {
-    padding: 20,
-  },
-  recommendedContent: {
-    padding: 15,
-  },
-  recommendedTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 5,
-  },
-  recommendedSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-});

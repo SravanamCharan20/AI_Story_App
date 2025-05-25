@@ -13,6 +13,10 @@ const storySchema = new mongoose.Schema({
   audioUrl: String,
   storyUrl: String,
   metadata: Object,
+  favorites: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   createdAt: {
     type: Date,
     default: Date.now
@@ -25,6 +29,7 @@ const storySchema = new mongoose.Schema({
 // Create only necessary indexes
 storySchema.index({ userId: 1 });
 storySchema.index({ createdAt: -1 });
+storySchema.index({ favorites: 1 });
 
 const Story = mongoose.model('Story', storySchema);
 

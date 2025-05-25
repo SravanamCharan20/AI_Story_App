@@ -9,6 +9,10 @@ import { useAudioPlayer } from './context/AudioPlayerContext';
 import tw from 'twrnc';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './context/AuthContext';
+import LoginPopup from './components/LoginPopup';
+import useLoginPopup from './hooks/useLoginPopup';
 
 export default function StoryDetail() {
   const { storyId, story: storyString, fromMiniPlayer } = useLocalSearchParams();
@@ -21,6 +25,8 @@ export default function StoryDetail() {
   const [volume, setVolume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [userId, setUserId] = useState(null);
   const previousVolume = useRef(1.0);
   const timeUpdateInterval = useRef(null);
   const animatedValue = useRef(new Animated.Value(0)).current;
@@ -28,6 +34,8 @@ export default function StoryDetail() {
   const wasPlayingBeforeDrag = useRef(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(fromMiniPlayer === 'true' ? 300 : 0)).current;
+  const { user } = useAuth();
+  const { showLoginPopup, closeLoginPopup, checkAuth } = useLoginPopup();
 
   const story = JSON.parse(storyString);
   const isStoryDetail = pathname.includes('/story-detail');
@@ -68,6 +76,71 @@ export default function StoryDetail() {
       }).start();
     }
   }, [fromMiniPlayer]);
+
+  useEffect(() => {
+    loadUserData();
+    checkFavoriteStatus();
+  }, []);
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const loadUserData = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) {
+        const parsedData = JSON.parse(userData);
+        setUserId(parsedData._id);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  const checkFavoriteStatus = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) {
+        const parsedData = JSON.parse(userData);
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.105:3000';
+        const response = await fetch(`${API_URL}/api/stories/${storyId}`);
+        const storyData = await response.json();
+        setIsFavorited(storyData.favorites?.includes(parsedData._id));
+      }
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    try {
+      if (!userId) {
+        console.error('No user ID found');
+        return;
+      }
+
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.105:3000';
+      const response = await fetch(`${API_URL}/api/stories/${storyId}/favorite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsFavorited(data.isFavorited);
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
+  };
 
   const setupAudioListeners = (audioSound) => {
     audioSound.getStatusAsync().then(status => {
@@ -279,7 +352,13 @@ export default function StoryDetail() {
             <Text style={tw`text-white text-lg font-semibold ${Platform.OS === 'ios' ? 'font-helvetica' : 'font-roboto'}`}>
               Story Details
             </Text>
-            <View style={tw`w-6`} />
+            <TouchableOpacity onPress={toggleFavorite}>
+              <Ionicons 
+                name={isFavorited ? "heart" : "heart-outline"} 
+                size={24} 
+                color={isFavorited ? "#FF4B4B" : "#FFF"} 
+              />
+            </TouchableOpacity>
           </View>
 
           <ScrollView

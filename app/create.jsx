@@ -323,7 +323,7 @@ export default function CreateStory() {
       });
 
       // API endpoint
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.109:3000/api/stories/generate';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.105:3000/api/stories/generate';
       console.log('Sending request to:', API_URL);
 
       // Make API request

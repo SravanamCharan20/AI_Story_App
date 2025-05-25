@@ -3,15 +3,20 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext';
+import tw from 'twrnc';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignUp() {
   const router = useRouter();
+  const { continueAsGuest } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
   
   // Add state for password
@@ -32,6 +37,7 @@ export default function SignUp() {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
 
   // Initial animations
@@ -111,6 +117,7 @@ export default function SignUp() {
       name: '',
       email: '',
       password: '',
+      confirmPassword: '',
     };
 
     // Name validation
@@ -141,6 +148,11 @@ export default function SignUp() {
       isValid = false;
     }
 
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
   };
@@ -159,7 +171,7 @@ export default function SignUp() {
     const { name, email, password } = formData;
 
     try {
-      const response = await fetch('http://192.168.0.109:3000/api/user/signup', {
+      const response = await fetch('http://192.168.0.105:3000/api/user/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -192,6 +204,14 @@ export default function SignUp() {
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleContinueWithoutLogin = async () => {
+    try {
+      await continueAsGuest();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to continue as guest. Please try again.');
     }
   };
 
@@ -294,72 +314,147 @@ export default function SignUp() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={tw`flex-1`}
     >
       <StatusBar barStyle="light-content" />
       <LinearGradient
-        colors={['#2C3E50', '#3498DB']}
+        colors={['#1DB954', '#191414']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.container}
+        style={tw`flex-1`}
       >
         <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={tw`flex-1 justify-center`}
           showsVerticalScrollIndicator={false}
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View
             style={[
-              styles.content,
+              tw`flex-1 justify-center items-center px-5`,
               {
                 opacity: fadeIn,
                 transform: [{ translateY: slideUp }],
               },
             ]}
           >
-            <View style={styles.card}>
-              <View style={styles.headerContainer}>
-                <Text style={styles.welcomeText}>Create Account</Text>
-                <Text style={styles.subtitleText}>
-                  Join our magical storytelling community
+            <View style={tw`bg-white/95 rounded-[35px] p-8 w-full items-center shadow-xl`}>
+              <View style={tw`items-center mb-8`}>
+                <View style={tw`w-20 h-20 rounded-full bg-[#1DB954]/20 justify-center items-center mb-5`}>
+                  <Ionicons name="book" size={40} color="#1DB954" />
+                </View>
+                <Text style={tw`text-3xl font-extrabold text-gray-900 mb-2 text-center`}>
+                  Join StoryTime
+                </Text>
+                <Text style={tw`text-base text-gray-600 text-center`}>
+                  Start your storytelling journey today
                 </Text>
               </View>
 
-              {[
-                {
-                  placeholder: 'Full Name',
-                  value: formData.name,
-                  onChange: (text) => setFormData({ ...formData, name: text }),
-                  icon: '👤',
-                },
-                {
-                  placeholder: 'Email Address',
-                  value: formData.email,
-                  onChange: (text) => setFormData({ ...formData, email: text }),
-                  icon: '✉️',
-                  keyboardType: 'email-address',
-                },
-                {
-                  placeholder: 'Password',
-                  value: formData.password,
-                  onChange: (text) => setFormData({ ...formData, password: text }),
-                  icon: '🔒',
-                  secureTextEntry: true,
-                },
-              ].map((input, index) => renderInput(input, index))}
+              <View style={tw`w-full space-y-4`}>
+                <View style={tw`flex-row items-center bg-gray-100 rounded-2xl px-4 py-3 ${errors.name ? 'border border-red-500' : ''}`}>
+                  <Text style={tw`text-xl mr-3`}>👤</Text>
+                  <TextInput
+                    style={tw`flex-1 text-base text-gray-900`}
+                    placeholder="Full Name"
+                    placeholderTextColor="#666"
+                    value={formData.name}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, name: text });
+                      if (errors.name) setErrors({ ...errors, name: '' });
+                    }}
+                    autoCapitalize="words"
+                  />
+                </View>
+                {errors.name ? <Text style={tw`text-red-500 text-sm ml-4`}>{errors.name}</Text> : null}
 
-              {renderButton()}
+                <View style={tw`flex-row items-center bg-gray-100 rounded-2xl px-4 py-3 ${errors.email ? 'border border-red-500' : ''}`}>
+                  <Text style={tw`text-xl mr-3`}>✉️</Text>
+                  <TextInput
+                    style={tw`flex-1 text-base text-gray-900`}
+                    placeholder="Email Address"
+                    placeholderTextColor="#666"
+                    value={formData.email}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, email: text });
+                      if (errors.email) setErrors({ ...errors, email: '' });
+                    }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+                {errors.email ? <Text style={tw`text-red-500 text-sm ml-4`}>{errors.email}</Text> : null}
 
-              <TouchableOpacity
-                onPress={() => router.push("/auth/signIn")}
-                style={styles.signInLink}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.signInText}>
-                  Already have an account? <Text style={styles.signInTextBold}>Sign In</Text>
-                </Text>
-              </TouchableOpacity>
+                <View style={tw`flex-row items-center bg-gray-100 rounded-2xl px-4 py-3 ${errors.password ? 'border border-red-500' : ''}`}>
+                  <Text style={tw`text-xl mr-3`}>🔒</Text>
+                  <TextInput
+                    style={tw`flex-1 text-base text-gray-900`}
+                    placeholder="Password"
+                    placeholderTextColor="#666"
+                    value={formData.password}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, password: text });
+                      if (errors.password) setErrors({ ...errors, password: '' });
+                    }}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={tw`p-2`}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off" : "eye"}
+                      size={22}
+                      color="#666"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password ? <Text style={tw`text-red-500 text-sm ml-4`}>{errors.password}</Text> : null}
+
+                <View style={tw`flex-row items-center bg-gray-100 rounded-2xl px-4 py-3 ${errors.confirmPassword ? 'border border-red-500' : ''}`}>
+                  <Text style={tw`text-xl mr-3`}>🔒</Text>
+                  <TextInput
+                    style={tw`flex-1 text-base text-gray-900`}
+                    placeholder="Confirm Password"
+                    placeholderTextColor="#666"
+                    value={formData.confirmPassword}
+                    onChangeText={(text) => {
+                      setFormData({ ...formData, confirmPassword: text });
+                      if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' });
+                    }}
+                    secureTextEntry={!showPassword}
+                  />
+                </View>
+                {errors.confirmPassword ? <Text style={tw`text-red-500 text-sm ml-4`}>{errors.confirmPassword}</Text> : null}
+
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  disabled={isLoading}
+                  style={tw`bg-[#1DB954] rounded-2xl py-4 items-center shadow-lg`}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={tw`text-white font-semibold text-lg`}>Create Account</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleContinueWithoutLogin}
+                  style={tw`bg-gray-100 rounded-2xl py-4 items-center`}
+                >
+                  <Text style={tw`text-gray-600 font-semibold text-lg`}>Continue without login</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => router.push("/auth/signIn")}
+                  style={tw`mt-4`}
+                >
+                  <Text style={tw`text-gray-600 text-center`}>
+                    Already have an account? <Text style={tw`text-[#1DB954] font-semibold`}>Sign In</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </Animated.View>
         </ScrollView>

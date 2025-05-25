@@ -10,6 +10,8 @@ import Slider from '@react-native-community/slider';
 import { PanResponder, TouchableWithoutFeedback } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAudioPlayer } from '../context/AudioPlayerContext';
+import tw from 'twrnc';
+import { RefreshControl } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -80,6 +82,7 @@ export default function Stories() {
   const [error, setError] = useState(null);
   const [sound, setSound] = useState(null);
   const { currentStory, isPlaying: audioPlayerIsPlaying, togglePlayPause, loadAndPlayStory } = useAudioPlayer();
+  const [refreshing, setRefreshing] = useState(false);
 
   const defaultStories = [
     {
@@ -130,6 +133,7 @@ export default function Stories() {
     { id: 0, title: "All", color: ['#FFB7B7', '#FF8C8C'] },
     { id: 1, title: "My PDFs", color: ['#B7D4FF', '#8CB4FF'] },
     { id: 2, title: "Default Stories", color: ['#B7FFD8', '#8CFFC0'] },
+    { id: 3, title: "Favorites", color: ['#FFB7E4', '#FF8CD4'] },
   ];
 
   // Add this after the storyCategories array
@@ -163,17 +167,11 @@ export default function Stories() {
 
   const loadStories = async () => {
     try {
-      // console.log('Starting to load stories...');
       setIsLoading(true);
       setError(null);
 
-      // Get user ID from AsyncStorage
-      // console.log('Fetching user data from AsyncStorage...');
       const userData = await AsyncStorage.getItem('user');
-      // console.log('User data from AsyncStorage:', userData);
-
       if (!userData) {
-        console.log('No user data found, showing default stories');
         setStories(defaultStories);
         setIsLoading(false);
         return;
@@ -181,28 +179,28 @@ export default function Stories() {
 
       let userId;
       try {
-        // console.log('Parsing user data...');
         const parsedUserData = JSON.parse(userData);
         userId = parsedUserData._id;
-        // console.log('Parsed user ID:', userId);
         
         if (!userId) {
-          console.error('Invalid user data: No user ID found');
           throw new Error('Invalid user data');
         }
       } catch (parseError) {
         console.error('Error parsing user data:', parseError);
-        console.log('Falling back to default stories due to parsing error');
         setStories(defaultStories);
         setIsLoading(false);
         return;
       }
 
-      // Use the correct API URL - replace localhost with your actual server IP
-      const API_URL = 'http://192.168.0.109:3000';
-      // console.log('Fetching stories from API:', `${API_URL}/api/stories/user/${userId}`);
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.105:3000';
+      let endpoint = `/api/stories/user/${userId}`;
       
-      const response = await fetch(`${API_URL}/api/stories/user/${userId}`, {
+      // If favorites category is selected, use the favorites endpoint
+      if (selectedCategory === "Favorites") {
+        endpoint = `/api/stories/favorites/${userId}`;
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -225,15 +223,13 @@ export default function Stories() {
       }
 
       const data = await response.json();
-      // console.log('Received stories from API:', data);
       
-      // Transform the stories to match the expected format
       const transformedStories = data.map(story => ({
-        id: story._id, // Convert _id to id
+        id: story._id,
         title: story.title,
-        author: story.narrator, // Map narrator to author
+        author: story.narrator,
         mood: story.mood,
-        category: story.genre, // Map genre to category
+        category: story.genre,
         duration: story.duration || '0:00',
         thumbnail: null,
         type: 'generated',
@@ -243,47 +239,25 @@ export default function Stories() {
         createdAt: story.createdAt,
         audioUrl: story.audioUrl,
         storyUrl: story.storyUrl,
-        tags: story.tags || [], // Include tags
+        tags: story.tags || [],
         language: story.language,
-        ageCategory: story.ageCategory
+        ageCategory: story.ageCategory,
+        isFavorited: story.favorites?.includes(userId) || false
       }));
 
-      // console.log('Transformed stories:', transformedStories);
       setStories(transformedStories);
       setAllStories(transformedStories);
 
-      // Also load local stories as fallback
-      // console.log('Checking for local stories...');
       const localStories = await AsyncStorage.getItem('uploadedPDFs');
-      // console.log('Local stories from AsyncStorage:', localStories);
-
       if (localStories) {
-        try {
-          const parsedLocalStories = JSON.parse(localStories);
-          // console.log('Parsed local stories:', parsedLocalStories);
-          
-          setStories(prevStories => {
-            const localStoryIds = new Set(prevStories.map(s => s.id));
-            const newLocalStories = parsedLocalStories.filter(s => !localStoryIds.has(s.id));
-            return [...transformedStories, ...newLocalStories];
-          });
-        } catch (localError) {
-          console.error('Error parsing local stories:', localError);
-          console.log('Using only API stories due to local parsing error');
-          setStories(transformedStories);
-        }
-      } else {
-        console.log('No local stories found, using only API stories');
-        setStories(transformedStories);
+        const parsedLocalStories = JSON.parse(localStories);
+        setStories(prev => [...prev, ...parsedLocalStories]);
+        setAllStories(prev => [...prev, ...parsedLocalStories]);
       }
     } catch (error) {
-      console.error('Error in loadStories:', error);
-      console.error('Error stack:', error.stack);
+      console.error('Error loading stories:', error);
       setError(error.message);
-      console.log('Falling back to default stories due to error');
-      setStories(defaultStories);
     } finally {
-      // console.log('Finished loading stories');
       setIsLoading(false);
     }
   };
@@ -467,12 +441,151 @@ export default function Stories() {
     );
   };
 
+  const StoryCard = ({ story, onPress }) => {
+    const [isFavorited, setIsFavorited] = useState(story.isFavorited);
+    const [userId, setUserId] = useState(null);
+    const { currentStory, isPlaying: audioPlayerIsPlaying, togglePlayPause, loadAndPlayStory } = useAudioPlayer();
+
+    useEffect(() => {
+      loadUserData();
+    }, []);
+
+    const loadUserData = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          const parsedData = JSON.parse(userData);
+          setUserId(parsedData._id);
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
+    const toggleFavorite = async (e) => {
+      e.stopPropagation();
+      try {
+        if (!userId) {
+          console.error('No user ID found');
+          return;
+        }
+
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.105:3000';
+        const response = await fetch(`${API_URL}/api/stories/${story.id}/favorite`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsFavorited(data.isFavorited);
+        }
+      } catch (error) {
+        console.error('Error toggling favorite:', error);
+      }
+    };
+
+    const handlePlayAudio = async (e) => {
+      e.stopPropagation();
+      try {
+        if (currentStory?.id === story.id) {
+          togglePlayPause();
+        } else {
+          await loadAndPlayStory(story);
+        }
+      } catch (error) {
+        console.error('Error playing audio:', error);
+      }
+    };
+
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        className="bg-white/5 rounded-lg p-4 mb-4 flex-row items-center"
+      >
+        <View className="w-12 h-12 rounded-md bg-white/10 justify-center items-center mr-3">
+          <Ionicons 
+            name={
+              story.mood === 'happy' ? 'sunny' :
+              story.mood === 'sad' ? 'sad' :
+              story.mood === 'angry' ? 'flame' :
+              story.mood === 'joy' ? 'happy' :
+              story.mood === 'surprise' ? 'alert' :
+              story.mood === 'calm' ? 'water' :
+              story.mood === 'mysterious' ? 'moon' : 'flash'
+            }
+            size={24} 
+            color="#FFF" 
+          />
+        </View>
+        <View className="flex-1">
+          <Text className="text-base font-semibold text-white mb-1" numberOfLines={1}>
+            {story.title}
+          </Text>
+          <Text className="text-sm text-gray-400" numberOfLines={1}>
+            {story.author} • {story.language} • {story.ageCategory}
+          </Text>
+          <View className="flex-row items-center mt-1">
+            <Text className="text-xs text-gray-500 mr-2">
+              {story.category} • {story.duration}
+            </Text>
+            <View className="flex-row items-center">
+              <Ionicons name="star" size={12} color="#1DB954" />
+              <Text className="text-xs text-gray-400 ml-1">{story.rating || '0.0'}</Text>
+            </View>
+          </View>
+        </View>
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity onPress={toggleFavorite} className="p-2">
+            <Ionicons 
+              name={isFavorited ? "heart" : "heart-outline"} 
+              size={20} 
+              color={isFavorited ? "#FF4B4B" : "#FFF"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handlePlayAudio}
+            className="w-8 h-8 rounded-full bg-white/10 justify-center items-center"
+          >
+            <Ionicons
+              name={currentStory?.id === story.id && audioPlayerIsPlaying ? "pause" : "play"}
+              size={16}
+              color="#FFF"
+            />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Add this new function to handle refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadStories();
+    } catch (error) {
+      console.error('Error refreshing stories:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-black">
       <View className="flex-1">
         <ScrollView 
           showsVerticalScrollIndicator={false}
           className="flex-1"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#FFF"
+            />
+          }
         >
           {/* Header */}
           <View className="px-4 pt-6 pb-2">
@@ -559,57 +672,11 @@ export default function Stories() {
               </View>
             ) : (
               stories.map((story) => (
-                <TouchableOpacity
+                <StoryCard
                   key={story.id}
+                  story={story}
                   onPress={() => handleViewStory(story)}
-                  className="flex-row items-center py-3 border-b border-white/10"
-                >
-                  <View className="w-12 h-12 rounded-md bg-white/10 justify-center items-center mr-3">
-                    <Ionicons 
-                      name={
-                        story.mood === 'happy' ? 'sunny' :
-                        story.mood === 'sad' ? 'sad' :
-                        story.mood === 'angry' ? 'flame' :
-                        story.mood === 'joy' ? 'happy' :
-                        story.mood === 'surprise' ? 'alert' :
-                        story.mood === 'calm' ? 'water' :
-                        story.mood === 'mysterious' ? 'moon' : 'flash'
-                      }
-                      size={24} 
-                      color="#FFF" 
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-white mb-1" numberOfLines={1}>
-                      {story.title}
-                    </Text>
-                    <Text className="text-sm text-gray-400" numberOfLines={1}>
-                      {story.author} • {story.language} • {story.ageCategory}
-                    </Text>
-                    <Text className="text-xs text-gray-500 mt-1" numberOfLines={1}>
-                      {story.category} • {story.duration}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center gap-3">
-                    <View className="flex-row items-center">
-                      <Ionicons name="star" size={14} color="#1DB954" />
-                      <Text className="text-sm text-gray-400 ml-1">{story.rating || '0.0'}</Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handlePlayAudio(story);
-                      }}
-                      className="w-8 h-8 rounded-full bg-white/10 justify-center items-center"
-                    >
-                      <Ionicons
-                        name={currentStory?.id === story.id && audioPlayerIsPlaying ? "pause" : "play"}
-                        size={16}
-                        color="#FFF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
+                />
               ))
             )}
           </View>

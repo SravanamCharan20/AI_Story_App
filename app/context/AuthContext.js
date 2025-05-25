@@ -6,6 +6,8 @@ import { useRouter, useSegments } from 'expo-router';
 const AuthContext = createContext({
   signIn: async (userData) => {},
   signOut: async () => {},
+  forceSignIn: () => {},
+  continueAsGuest: async () => {},
   user: null,
   isLoading: true,
 });
@@ -26,10 +28,12 @@ function useProtectedRoute(user) {
 
   useEffect(() => {
     const inAuthGroup = segments[0] === 'auth';
+    const inTabsGroup = segments[0] === '(tabs)';
 
-    if (!user && !inAuthGroup) {
+    // Only redirect if we're not already in the auth group
+    if (!user && !inAuthGroup && !user?.isGuest) {
       router.replace('/auth/signIn');
-    } else if (user && inAuthGroup) {
+    } else if (user && !user.isGuest && inAuthGroup) {
       router.replace('/(tabs)/home');
     }
   }, [user, segments]);
@@ -50,12 +54,21 @@ export default function AuthProvider({ children }) {
 
   async function checkUser() {
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
+      const [userData, isGuest] = await Promise.all([
+        AsyncStorage.getItem('user'),
+        AsyncStorage.getItem('isGuest')
+      ]);
+
+      if (isGuest === 'true') {
+        setUser({ isGuest: true });
+      } else if (userData) {
         setUser(JSON.parse(userData));
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.log('Error checking for stored user:', error);
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
@@ -63,8 +76,11 @@ export default function AuthProvider({ children }) {
 
   async function signIn(userData) {
     try {
+      // Clear guest mode if it exists
+      await AsyncStorage.removeItem('isGuest');
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
+      router.replace('/(tabs)/home');
     } catch (error) {
       throw new Error('Error storing user data');
     }
@@ -72,7 +88,10 @@ export default function AuthProvider({ children }) {
 
   async function signOut() {
     try {
-      await AsyncStorage.removeItem('user');
+      await Promise.all([
+        AsyncStorage.removeItem('user'),
+        AsyncStorage.removeItem('isGuest')
+      ]);
       setUser(null);
       router.replace('/auth/signIn');
     } catch (error) {
@@ -80,11 +99,31 @@ export default function AuthProvider({ children }) {
     }
   }
 
+  const forceSignIn = () => {
+    setUser(null);
+    router.replace('/auth/signIn');
+  };
+
+  const continueAsGuest = async () => {
+    try {
+      // Clear any existing user data
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.setItem('isGuest', 'true');
+      setUser({ isGuest: true });
+      router.replace('/(tabs)/home');
+    } catch (error) {
+      console.error('Error setting guest mode:', error);
+      throw new Error('Failed to continue as guest');
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
         signIn,
         signOut,
+        forceSignIn,
+        continueAsGuest,
         user,
         isLoading,
       }}>

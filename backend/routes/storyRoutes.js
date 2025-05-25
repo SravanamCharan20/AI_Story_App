@@ -118,5 +118,49 @@ router.post('/generate', upload.fields([
   }
 });
 
+// Toggle favorite status for a story
+router.post('/:id/favorite', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const story = await Story.findById(id);
+    if (!story) {
+      return res.status(404).json({ message: 'Story not found' });
+    }
+
+    const isFavorited = story.favorites.includes(userId);
+    if (isFavorited) {
+      story.favorites = story.favorites.filter(id => id.toString() !== userId);
+    } else {
+      story.favorites.push(userId);
+    }
+
+    await story.save();
+    res.status(200).json({ 
+      message: isFavorited ? 'Story removed from favorites' : 'Story added to favorites',
+      isFavorited: !isFavorited
+    });
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    res.status(500).json({ message: 'Error toggling favorite status' });
+  }
+});
+
+// Get user's favorite stories
+router.get('/favorites/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const stories = await Story.find({ favorites: userId }).sort({ createdAt: -1 });
+    res.status(200).json(stories);
+  } catch (error) {
+    console.error('Error fetching favorite stories:', error);
+    res.status(500).json({ message: 'Error fetching favorite stories' });
+  }
+});
 
 export default router;

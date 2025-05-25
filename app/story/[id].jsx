@@ -156,7 +156,7 @@ export default function StoryDetail() {
   useEffect(() => {
     const fetchStory = async () => {
       try {
-        const API_URL = 'http://192.168.0.109:3000';
+        const API_URL = 'http://192.168.0.105:3000';
         const response = await fetch(`${API_URL}/api/stories/${id}`);
         if (!response.ok) {
           throw new Error('Failed to fetch story');

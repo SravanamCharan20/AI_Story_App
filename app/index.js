@@ -10,10 +10,6 @@ export default function Index() {
     return null;
   }
 
-  // Redirect based on authentication state
-  if (user) {
-    return <Redirect href="/(tabs)/home" />;
-  }
-
-  return <Redirect href="/auth/signIn" />;
+  // Always redirect to home page, regardless of authentication state
+  return <Redirect href="/(tabs)/home" />;
 } 

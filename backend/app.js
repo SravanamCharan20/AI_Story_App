@@ -22,7 +22,7 @@ config();
 
 // Configure CORS
 app.use(cors({
-  origin: ['http://localhost:8081', 'http://192.168.0.109:8081', 'http://192.168.0.109:8081'],
+  origin: ['http://localhost:8081', 'http://192.168.0.105:8081', 'http://192.168.0.105:8081'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
