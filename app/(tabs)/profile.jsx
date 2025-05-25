@@ -74,7 +74,6 @@ export default function Profile() {
         const parsedData = JSON.parse(userDataString);
         setUserData(parsedData);
         
-        // Load user's stories and favorites
         const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.105:3000';
         
         // Load user's stories
@@ -84,12 +83,30 @@ export default function Profile() {
           calculateStats(stories);
         }
 
-        // Load favorite stories
+        // Load favorite stories with proper transformation
         const favoritesResponse = await fetch(`${API_URL}/api/stories/favorites/${parsedData._id}`);
         if (favoritesResponse.ok) {
           const favorites = await favoritesResponse.json();
-          setFavoriteStories(favorites);
-          setStats(prev => ({ ...prev, favoriteStories: favorites.length }));
+          const transformedFavorites = favorites.map(story => ({
+            _id: story._id,
+            id: story._id,
+            title: story.title,
+            author: story.narrator || story.author,
+            mood: story.mood,
+            category: story.genre,
+            duration: story.duration || '0:00',
+            language: story.language,
+            rating: story.metadata?.rating || 0,
+            plays: story.metadata?.plays || 0,
+            createdAt: story.createdAt,
+            audioUrl: story.audioUrl,
+            storyUrl: story.storyUrl,
+            tags: story.tags || [],
+            ageCategory: story.ageCategory,
+            isFavorited: true
+          }));
+          setFavoriteStories(transformedFavorites);
+          setStats(prev => ({ ...prev, favoriteStories: transformedFavorites.length }));
         }
       }
     } catch (error) {
@@ -196,6 +213,14 @@ export default function Profile() {
       if (response.ok) {
         // Refresh both favorite stories and stats
         await loadUserData();
+        
+        // Update AsyncStorage to trigger refresh in other components
+        const currentFavorites = await AsyncStorage.getItem('favoriteStories');
+        if (currentFavorites) {
+          const favorites = JSON.parse(currentFavorites);
+          const updatedFavorites = favorites.filter(id => id !== storyId);
+          await AsyncStorage.setItem('favoriteStories', JSON.stringify(updatedFavorites));
+        }
       }
     } catch (error) {
       console.error('Error removing favorite:', error);
@@ -605,19 +630,6 @@ export default function Profile() {
                             style={tw`p-2`}
                           >
                             <Ionicons name="heart" size={20} color="#1DB954" />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handlePlayAudio(story);
-                            }}
-                            style={tw`w-8 h-8 rounded-full bg-white/10 justify-center items-center`}
-                          >
-                            <Ionicons
-                              name={currentStory?.id === story.id && audioPlayerIsPlaying ? "pause" : "play"}
-                              size={16}
-                              color="#FFF"
-                            />
                           </TouchableOpacity>
                         </View>
                       </TouchableOpacity>
